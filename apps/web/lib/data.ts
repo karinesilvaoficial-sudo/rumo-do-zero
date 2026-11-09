@@ -38,3 +38,4 @@ export async function accountsList(ws: string) {
   const { data } = await sb.from("accounts").select("id,name,kind").eq("workspace_id", ws).is("archived_at", null).order("created_at");
   return (data ?? []) as { id: string; name: string; kind: string }[];
 }
+export const dailyExpenses = (ws: string, from: string, to: string) => call<{ date: string; amount_cents: string }[]>("daily_expenses", { ws, p_from: from, p_to: to });

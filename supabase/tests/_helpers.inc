@@ -21,8 +21,8 @@ begin
   end;
   raise exception 'ASSERT % : expected error "%" but statement succeeded', label, expected_fragment;
 end $$;
-grant usage on schema t to authenticated;
-grant execute on all functions in schema t to authenticated;
+grant usage on schema t to authenticated, service_role;
+grant execute on all functions in schema t to authenticated, service_role;
 insert into auth.users (id, email, email_confirmed_at) values
   ('00000000-0000-0000-0000-00000000000a', 'ana@exemplo.test', now()),
   ('00000000-0000-0000-0000-00000000000b', 'bruno@exemplo.test', now()),

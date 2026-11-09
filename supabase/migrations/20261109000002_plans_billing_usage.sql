@@ -63,6 +63,7 @@ create table public.access_periods (
   plan_code text not null references public.plans (code) check (plan_code <> 'free'),
   source text not null check (source in ('stripe_subscription', 'pix_prepaid', 'admin_grant')),
   source_ref text not null unique,            -- invoice id / payment_intent id / grant id
+  payment_ref text,                           -- payment_intent (para estorno/contestação)
   starts_at timestamptz not null,
   ends_at timestamptz not null check (ends_at > starts_at),
   revoked_at timestamptz,
@@ -70,6 +71,7 @@ create table public.access_periods (
   created_at timestamptz not null default now()
 );
 create index access_periods_user_idx on public.access_periods (user_id, ends_at desc);
+create index access_periods_payment_idx on public.access_periods (payment_ref);
 
 create table public.provider_events (
   id text primary key,                         -- id do evento no provedor

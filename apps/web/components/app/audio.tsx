@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/immutability -- HTMLAudioElement é imperativo; configurado dentro de callbacks de ação do usuário, nunca na renderização. */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/icons";
 
@@ -13,6 +14,7 @@ export function useAudio() {
   const [state, setState] = useState<"idle" | "loading" | "playing" | "paused" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [volume, setVolume] = useState(1);
+  const [canRepeat, setCanRepeat] = useState(false);
 
   const cleanup = useCallback(() => {
     ctrl.current?.abort();
@@ -20,11 +22,12 @@ export function useAudio() {
     audio.current?.pause();
   }, []);
   useEffect(() => () => { cleanup(); if (url.current?.startsWith("blob:")) URL.revokeObjectURL(url.current); }, [cleanup]);
-  useEffect(() => { if (audio.current) audio.current.volume = volume; }, [volume]);
+  useEffect(() => { const a = audio.current; if (a) a.volume = volume; }, [volume]);
 
   const playUrl = useCallback(async (src: string) => {
     if (url.current?.startsWith("blob:") && url.current !== src) URL.revokeObjectURL(url.current);
     url.current = src;
+    setCanRepeat(true);
     const a = audio.current ?? new Audio();
     audio.current = a;
     a.src = src;
@@ -67,7 +70,7 @@ export function useAudio() {
     resume: () => void audio.current?.play(),
     stop: () => { cleanup(); if (audio.current) audio.current.currentTime = 0; setState("idle"); },
     repeat: () => { if (url.current) void playUrl(url.current); },
-    canRepeat: Boolean(url.current),
+    canRepeat,
   };
 }
 

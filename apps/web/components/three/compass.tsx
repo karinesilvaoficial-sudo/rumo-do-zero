@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/immutability -- objetos Three.js (câmera, luzes, materiais, cena) são mutáveis por design; alterados apenas em efeitos e quadros, nunca durante a renderização React. */
 "use client";
 import { useFrame, useThree, type ThreeElements } from "@react-three/fiber";
 import { forwardRef, useEffect, useMemo, useRef } from "react";

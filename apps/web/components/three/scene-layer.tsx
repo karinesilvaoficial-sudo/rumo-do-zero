@@ -1,9 +1,10 @@
+/* eslint-disable react-hooks/immutability -- objetos Three.js (câmera, luzes, materiais, cena) são mutáveis por design; alterados apenas em efeitos e quadros, nunca durante a renderização React. */
 "use client";
 import { ContactShadows } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
 import gsap from "gsap";
 import { usePathname } from "next/navigation";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { Compass, StudioEnvironment } from "./compass";
 import { StaticCompass } from "./static-compass";
@@ -76,13 +77,12 @@ export function SceneLayer({ reduceMotionPref }: { reduceMotionPref: boolean }) 
   const sysReduced = useReducedMotion();
   const reduced = sysReduced || reduceMotionPref;
   const visible = usePageVisible();
-  const [webgl, setWebgl] = useState<boolean | null>(null);
+  const [webgl] = useState<boolean>(() => hasWebGL());
   const [lost, setLost] = useState(false);
   const [key, setKey] = useState(0);
   const object = useRef<THREE.Group>(null);
   const light = useRef<THREE.DirectionalLight>(null);
 
-  useLayoutEffect(() => setWebgl(hasWebGL()), []);
   useEffect(() => { document.documentElement.dataset.reduceMotion = String(reduceMotionPref); }, [reduceMotionPref]);
 
   return (

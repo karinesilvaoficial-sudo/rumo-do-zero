@@ -133,6 +133,15 @@ begin
 end $$;
 comment on function private.my_entitlements() is 'rpc';
 
+-- Plano efetivo do titular do espaço (recursos de relatório/IA dependem dele)
+create or replace function private.workspace_plan(ws uuid)
+returns text language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not private.can_read(ws) then raise exception 'forbidden' using errcode = '42501'; end if;
+  return private.effective_plan(private.workspace_owner(ws));
+end $$;
+comment on function private.workspace_plan(uuid) is 'rpc';
+
 -- ---------------------------------------------------------------------------
 -- Endurecimento: nenhuma função privada executável por PUBLIC além do necessário
 -- ---------------------------------------------------------------------------
@@ -147,6 +156,8 @@ grant execute on function private.is_member(uuid) to authenticated;
 grant execute on function private.has_role(uuid, public.member_role) to authenticated;
 grant execute on function private.member_role_of(uuid) to authenticated;
 grant execute on function private.storage_can_read(text) to authenticated;
+grant execute on function private.can_read(uuid) to authenticated;
+grant execute on function private.is_service_role() to authenticated;
 grant execute on function private.reserve_usage(uuid, text, int, text) to authenticated;
 grant execute on function private.settle_usage(uuid, int, bigint, boolean) to authenticated;
 grant execute on all functions in schema private to service_role;

@@ -64,11 +64,13 @@ export function CategoryChart({ rows, title }: { rows: Cat[]; title: string }) {
 
 export function DonutChart({ rows }: { rows: Cat[] }) {
   // rosca só com poucas categorias: 5 maiores + "Outras" (soma reconciliável)
-  const top = rows.slice(0, 5);
-  const rest = rows.slice(5).reduce((a, r) => a + parseCents(r.amount_cents), 0n);
-  const items = [...top.map((r) => ({ name: r.name, value: centsToChartNumber(r.amount_cents) })), ...(rest > 0n ? [{ name: "Outras", value: centsToChartNumber(rest) }] : [])];
-  const option = useMemo(() => ({ color: [...chartPalette], tooltip: { trigger: "item" }, legend: { bottom: 0, type: "scroll" },
-    series: [{ type: "pie", radius: ["48%", "72%"], center: ["50%", "44%"], label: { show: true, formatter: "{d}%" }, data: items }] }), [items]);
+  const option = useMemo(() => {
+    const top = rows.slice(0, 5);
+    const rest = rows.slice(5).reduce((a, r) => a + parseCents(r.amount_cents), 0n);
+    const items = [...top.map((r) => ({ name: r.name, value: centsToChartNumber(r.amount_cents) })), ...(rest > 0n ? [{ name: "Outras", value: centsToChartNumber(rest) }] : [])];
+    return { color: [...chartPalette], tooltip: { trigger: "item" }, legend: { bottom: 0, type: "scroll" },
+      series: [{ type: "pie", radius: ["48%", "72%"], center: ["50%", "44%"], label: { show: true, formatter: "{d}%" }, data: items }] };
+  }, [rows]);
   return <EChart option={option} empty={rows.length === 0} label="Gráfico de rosca com a participação das cinco maiores categorias e Outras." table={<p className="small muted">Mesmos valores da tabela de categorias.</p>} />;
 }
 
@@ -76,17 +78,19 @@ export function SankeyChart({ income, expense }: { income: Cat[]; expense: Cat[]
   const ti = income.reduce((a, r) => a + parseCents(r.amount_cents), 0n);
   const te = expense.reduce((a, r) => a + parseCents(r.amount_cents), 0n);
   const saldo = ti - te;
-  const nodes = new Map<string, true>();
-  const links: { source: string; target: string; value: number }[] = [];
-  for (const r of income) { nodes.set(`↘ ${r.name}`, true); links.push({ source: `↘ ${r.name}`, target: "Entradas", value: centsToChartNumber(r.amount_cents) }); }
-  nodes.set("Entradas", true);
-  for (const r of expense.slice(0, 8)) { nodes.set(r.name, true); links.push({ source: "Entradas", target: r.name, value: centsToChartNumber(r.amount_cents) }); }
-  const restE = expense.slice(8).reduce((a, r) => a + parseCents(r.amount_cents), 0n);
-  if (restE > 0n) { nodes.set("Outras despesas ", true); links.push({ source: "Entradas", target: "Outras despesas ", value: centsToChartNumber(restE) }); }
-  if (saldo > 0n) { nodes.set("Sobra do período", true); links.push({ source: "Entradas", target: "Sobra do período", value: centsToChartNumber(saldo) }); }
-  const option = useMemo(() => ({ color: [...chartPalette], tooltip: { trigger: "item" },
-    series: [{ type: "sankey", left: 8, right: 120, nodeGap: 10, emphasis: { focus: "adjacency" }, lineStyle: { color: "gradient", opacity: 0.35 },
-      label: { color: tokens.ink }, data: [...nodes.keys()].map((name) => ({ name })), links }] }), [nodes, links]);
+  const option = useMemo(() => {
+    const nodes = new Map<string, true>();
+    const links: { source: string; target: string; value: number }[] = [];
+    for (const r of income) { nodes.set(`↘ ${r.name}`, true); links.push({ source: `↘ ${r.name}`, target: "Entradas", value: centsToChartNumber(r.amount_cents) }); }
+    nodes.set("Entradas", true);
+    for (const r of expense.slice(0, 8)) { nodes.set(r.name, true); links.push({ source: "Entradas", target: r.name, value: centsToChartNumber(r.amount_cents) }); }
+    const restE = expense.slice(8).reduce((a, r) => a + parseCents(r.amount_cents), 0n);
+    if (restE > 0n) { nodes.set("Outras despesas ", true); links.push({ source: "Entradas", target: "Outras despesas ", value: centsToChartNumber(restE) }); }
+    if (saldo > 0n) { nodes.set("Sobra do período", true); links.push({ source: "Entradas", target: "Sobra do período", value: centsToChartNumber(saldo) }); }
+    return { color: [...chartPalette], tooltip: { trigger: "item" },
+      series: [{ type: "sankey", left: 8, right: 120, nodeGap: 10, emphasis: { focus: "adjacency" }, lineStyle: { color: "gradient", opacity: 0.35 },
+        label: { color: tokens.ink }, data: [...nodes.keys()].map((name) => ({ name })), links }] };
+  }, [income, expense, saldo]);
   return (
     <>
       {saldo < 0n ? <p className="small muted">As saídas superaram as entradas em {formatBRL(-saldo)}; o fluxo mostra apenas como as entradas se distribuíram.</p> : null}
@@ -109,17 +113,18 @@ export function HeatmapChart({ days, from, to }: { days: { date: string; amount_
 }
 
 type ProjRow = { month: string; balance_cents: string };
+const SCEN_NAMES: Record<string, string> = { conservative: "Conservador", central: "Central", optimistic: "Otimista", custom: "Personalizado" };
 export function ProjectionChart({ scenarios }: { scenarios: Record<string, { rows: ProjRow[] }> }) {
-  const names: Record<string, string> = { conservative: "Conservador", central: "Central", optimistic: "Otimista", custom: "Personalizado" };
-  const keys = Object.keys(scenarios);
-  const months = scenarios[keys[0] ?? ""]?.rows.map((r) => r.month) ?? [];
+  const names = SCEN_NAMES;
+  const keys = useMemo(() => Object.keys(scenarios), [scenarios]);
+  const months = useMemo(() => scenarios[keys[0] ?? ""]?.rows.map((r) => r.month) ?? [], [scenarios, keys]);
   const option = useMemo(() => ({
     color: ["#8A5A00", tokens.blue, "#146C43", "#7B61D9"],
     legend: { top: 0 }, grid: { left: 8, right: 16, top: 36, bottom: 8, containLabel: true },
     xAxis: { type: "category", data: months.map(shortMonth), ...axis },
     yAxis: { type: "value", ...axis },
     series: keys.map((k) => ({ name: `${names[k] ?? k} (hipótese)`, type: "line", symbolSize: 5, lineStyle: { type: k === "central" ? "solid" : "dashed" }, data: scenarios[k]!.rows.map((r) => centsToChartNumber(r.balance_cents)) })),
-  }), [scenarios, keys, months]);
+  }), [scenarios, keys, months, names]);
   return <EChart option={option} label="Projeção de saldo por cenário (hipóteses editáveis, não promessas)."
     table={<div className="table-wrap"><table className="table"><thead><tr><th>Mês</th>{keys.map((k) => <th key={k} className="r">{names[k] ?? k}</th>)}</tr></thead>
       <tbody>{months.map((m, i) => <tr key={m}><td>{shortMonth(m)}</td>{keys.map((k) => <td key={k} className="r money">{formatBRL(scenarios[k]!.rows[i]!.balance_cents)}</td>)}</tr>)}</tbody></table></div>} />;

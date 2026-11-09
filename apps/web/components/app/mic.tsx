@@ -24,7 +24,6 @@ export function MicButton({ workspaceId, onText, disabled }: { workspaceId: stri
     stream.current = null;
   };
   useEffect(() => () => { ctrl.current?.abort(); if (rec.current?.state === "recording") rec.current.stop(); stopAll(); }, []);
-  useEffect(() => { ctrl.current?.abort(); if (rec.current?.state === "recording") { rec.current.onstop = null; rec.current.stop(); } stopAll(); setState("idle"); }, [workspaceId]);
 
   async function start() {
     setErr(null);

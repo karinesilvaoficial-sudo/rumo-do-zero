@@ -31,7 +31,12 @@ function IntentCard({ intent, workspaceId, canAct }: { intent: Intent; workspace
   const [status, setStatus] = useState(intent.status ?? "prepared");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const expired = new Date(intent.expires_at).getTime() < Date.now();
+  const [expired, setExpired] = useState(false);
+  useEffect(() => {
+    const ms = new Date(intent.expires_at).getTime() - Date.now();
+    const t = setTimeout(() => setExpired(true), Math.max(0, ms));
+    return () => clearTimeout(t);
+  }, [intent.expires_at]);
   async function decide(decision: "confirm" | "reject") {
     if (busy) return; // evita clique duplo
     setBusy(true); setErr(null);
@@ -183,7 +188,7 @@ export function Chat({ workspaceId, workspaceName, conversationId, initial, peri
         <label htmlFor="pergunta" className="sr-only">Mensagem para a RUMO IA</label>
         <textarea id="pergunta" value={text} onChange={(e) => setText(e.target.value)} maxLength={4000} rows={1} placeholder={aiReady ? "Pergunte ou peça algo ao RUMO…" : "IA não configurada neste ambiente"} disabled={!aiReady}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(text); } }} />
-        {voiceReady ? <MicButton workspaceId={workspaceId} disabled={!aiReady || busy} onText={(t) => { setText(t); setMode("voice"); }} /> : null}
+        {voiceReady ? <MicButton key={workspaceId} workspaceId={workspaceId} disabled={!aiReady || busy} onText={(t) => { setText(t); setMode("voice"); }} /> : null}
         {busy ? <button type="button" className="btn btn-secondary" onClick={() => ctrl.current?.abort()}>Parar</button>
           : <button className="btn btn-primary" type="submit" disabled={!aiReady || !text.trim()}>Enviar</button>}
       </form>

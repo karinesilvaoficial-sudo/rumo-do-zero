@@ -23,6 +23,7 @@ const NAV = [
 const ACCOUNT = [
   { href: "/app/pessoas", label: "Pessoas e permissões", icon: Icon.people },
   { href: "/app/assinatura", label: "Assinatura", icon: Icon.billing },
+  { href: "/app/notificacoes", label: "Notificações", icon: Icon.info },
   { href: "/app/configuracoes", label: "Configurações", icon: Icon.settings },
 ];
 const PERIODS = [["mes", "Este mês"], ["mes-anterior", "Mês anterior"], ["3m", "3 meses"], ["12m", "12 meses"], ["ano", "Ano"]] as const;
@@ -37,14 +38,15 @@ export function Shell({ children, user, workspaces, activeId, hideValues, reduce
 }) {
   const path = usePathname();
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [openAt, setOpenAt] = useState<string | null>(null);
+  const open = openAt === path; // muda de rota → menu fecha
+  const setOpen = (v: boolean) => setOpenAt(v ? path : null);
   const [hide, setHide] = useState(hideValues);
   const [pending, start] = useTransition();
   const active = workspaces.find((w) => w.id === activeId) ?? null;
 
-  useEffect(() => setOpen(false), [path]);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpenAt(null); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);

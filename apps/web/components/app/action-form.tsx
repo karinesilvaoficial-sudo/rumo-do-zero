@@ -15,7 +15,11 @@ export function ActionForm({ action, children, submit = "Salvar", success = "Sal
 }) {
   const router = useRouter();
   const [key, setKey] = useState(() => crypto.randomUUID());
-  const [state, run] = useActionState(action, null as ActionResult<unknown> | null);
+  const [state, run] = useActionState(async (prev: unknown, fd: FormData) => {
+    const r = await action(prev, fd);
+    if (r.ok) setKey(crypto.randomUUID()); // nova chave de idempotência só após sucesso
+    return r;
+  }, null as ActionResult<unknown> | null);
   const form = useRef<HTMLFormElement>(null);
   const handled = useRef<unknown>(null);
   useEffect(() => {
@@ -23,7 +27,6 @@ export function ActionForm({ action, children, submit = "Salvar", success = "Sal
     handled.current = state;
     if (state.ok) {
       if (resetOnSuccess) form.current?.reset();
-      setKey(crypto.randomUUID());
       onDone?.(state.data);
       router.refresh();
     }

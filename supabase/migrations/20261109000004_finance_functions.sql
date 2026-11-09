@@ -676,6 +676,20 @@ begin
 end $$;
 comment on function private.upsert_budget(uuid, uuid, date, bigint) is 'rpc';
 
+-- Leitura de agregados por tarefas de servidor (fila de relatórios/lembretes) sem sessão de usuário.
+-- Só o papel service_role (claim do JWT emitido pelo Supabase) passa; quem pediu é reverificado na aplicação.
+create or replace function private.is_service_role()
+returns boolean language sql stable set search_path = '' as $$
+  -- coalesce final: ausência de claim => false (nunca NULL, que anularia o NOT nas verificações)
+  select coalesce(coalesce(nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role',
+                           nullif(current_setting('request.jwt.claim.role', true), '')) = 'service_role', false)
+$$;
+
+create or replace function private.can_read(ws uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select coalesce(private.is_member(ws), false) or private.is_service_role()
+$$;
+
 -- ---------------------------------------------------------------------------
 -- Agregações canônicas (dashboard, relatórios, IA e PDF consomem estes valores)
 -- Valores em centavos retornados como TEXTO para evitar perda de precisão em JSON.
@@ -685,7 +699,7 @@ returns jsonb language plpgsql stable security definer set search_path = '' as $
 declare
   res jsonb;
 begin
-  if not private.is_member(ws) then raise exception 'forbidden' using errcode = '42501'; end if;
+  if not private.can_read(ws) then raise exception 'forbidden' using errcode = '42501'; end if;
   with fx as (
     select t.* from public.transactions t
     where t.workspace_id = ws and t.reversed_at is null and t.reversal_of is null
@@ -741,7 +755,7 @@ comment on function private.financial_summary(uuid, date, date) is 'rpc';
 create or replace function private.category_breakdown(ws uuid, p_from date, p_to date, p_kind text)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
 begin
-  if not private.is_member(ws) then raise exception 'forbidden' using errcode = '42501'; end if;
+  if not private.can_read(ws) then raise exception 'forbidden' using errcode = '42501'; end if;
   return coalesce((
     select jsonb_agg(jsonb_build_object('category_id', x.category_id, 'name', x.name, 'amount_cents', x.total::text, 'count', x.n)
       order by x.total desc)
@@ -759,7 +773,7 @@ comment on function private.category_breakdown(uuid, date, date, text) is 'rpc';
 create or replace function private.monthly_series(ws uuid, p_months int, p_until date)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
 begin
-  if not private.is_member(ws) then raise exception 'forbidden' using errcode = '42501'; end if;
+  if not private.can_read(ws) then raise exception 'forbidden' using errcode = '42501'; end if;
   if p_months < 1 or p_months > 36 then raise exception 'invalid_range' using errcode = '22023'; end if;
   return (
     select jsonb_agg(jsonb_build_object(
@@ -785,7 +799,7 @@ comment on function private.monthly_series(uuid, int, date) is 'rpc';
 create or replace function private.account_balances(ws uuid, p_as_of date)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
 begin
-  if not private.is_member(ws) then raise exception 'forbidden' using errcode = '42501'; end if;
+  if not private.can_read(ws) then raise exception 'forbidden' using errcode = '42501'; end if;
   return coalesce((
     select jsonb_agg(jsonb_build_object('account_id', a.id, 'name', a.name, 'kind', a.kind,
       'opening_cents', a.opening_balance_cents::text,
@@ -798,7 +812,7 @@ comment on function private.account_balances(uuid, date) is 'rpc';
 create or replace function private.upcoming_commitments(ws uuid, p_until date)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
 begin
-  if not private.is_member(ws) then raise exception 'forbidden' using errcode = '42501'; end if;
+  if not private.can_read(ws) then raise exception 'forbidden' using errcode = '42501'; end if;
   return coalesce((
     select jsonb_agg(x order by x->>'due_date') from (
       select jsonb_build_object('id', c.id, 'direction', c.direction, 'description', c.description,
@@ -822,7 +836,7 @@ comment on function private.upcoming_commitments(uuid, date) is 'rpc';
 create or replace function private.goal_progress(ws uuid)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
 begin
-  if not private.is_member(ws) then raise exception 'forbidden' using errcode = '42501'; end if;
+  if not private.can_read(ws) then raise exception 'forbidden' using errcode = '42501'; end if;
   return coalesce((
     select jsonb_agg(jsonb_build_object('id', g.id, 'name', g.name, 'status', g.status, 'target_cents', g.target_cents::text,
       'saved_cents', coalesce(s.total, 0)::text, 'target_date', g.target_date, 'version', g.version)
@@ -836,7 +850,7 @@ comment on function private.goal_progress(uuid) is 'rpc';
 create or replace function private.card_invoices_summary(ws uuid, p_from date)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
 begin
-  if not private.is_member(ws) then raise exception 'forbidden' using errcode = '42501'; end if;
+  if not private.can_read(ws) then raise exception 'forbidden' using errcode = '42501'; end if;
   return coalesce((
     select jsonb_agg(jsonb_build_object('id', i.id, 'card_id', i.card_id, 'reference_month', i.reference_month,
       'closing_date', i.closing_date, 'due_date', i.due_date,
@@ -847,6 +861,19 @@ begin
     where i.workspace_id = ws and (i.due_date >= p_from or t.pending_cents > 0)), '[]'::jsonb);
 end $$;
 comment on function private.card_invoices_summary(uuid, date) is 'rpc';
+
+create or replace function private.daily_expenses(ws uuid, p_from date, p_to date)
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not private.can_read(ws) then raise exception 'forbidden' using errcode = '42501'; end if;
+  if p_to - p_from > 400 then raise exception 'invalid_range' using errcode = '22023'; end if;
+  return coalesce((select jsonb_agg(jsonb_build_object('date', d, 'amount_cents', v::text) order by d) from (
+    select t.competence_date d, sum(t.amount_cents) v from public.transactions t
+    where t.workspace_id = ws and t.reversed_at is null and t.reversal_of is null
+      and t.kind in ('expense', 'card_purchase', 'card_charge') and t.competence_date between p_from and p_to
+    group by t.competence_date) x), '[]'::jsonb);
+end $$;
+comment on function private.daily_expenses(uuid, date, date) is 'rpc';
 
 -- ---------------------------------------------------------------------------
 -- Publicação: wrappers SECURITY INVOKER em public para funções 'rpc'
@@ -866,7 +893,7 @@ begin
     execute format('create or replace function public.%I(%s) returns %s language sql security invoker set search_path = '''' as $f$ select private.%I(%s) $f$',
       r.proname, r.args, r.res, r.proname, coalesce(call_args, ''));
     execute format('revoke execute on function public.%I(%s) from public, anon', r.proname, pg_get_function_identity_arguments(r.oid));
-    execute format('grant execute on function public.%I(%s) to authenticated', r.proname, pg_get_function_identity_arguments(r.oid));
+    execute format('grant execute on function public.%I(%s) to authenticated, service_role', r.proname, pg_get_function_identity_arguments(r.oid));
     execute format('revoke execute on function private.%I(%s) from public', r.proname, pg_get_function_identity_arguments(r.oid));
     execute format('grant execute on function private.%I(%s) to authenticated', r.proname, pg_get_function_identity_arguments(r.oid));
   end loop;

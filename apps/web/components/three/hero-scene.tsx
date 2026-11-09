@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/immutability -- objetos Three.js (câmera, luzes, materiais, cena) são mutáveis por design; alterados apenas em efeitos e quadros, nunca durante a renderização React. */
 "use client";
 import { ContactShadows, PerformanceMonitor } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
@@ -77,7 +78,7 @@ function Rig({ reduced }: { reduced: boolean }) {
 }
 
 export default function HeroScene() {
-  const [webgl, setWebgl] = useState<boolean | null>(null);
+  const [webgl] = useState<boolean>(() => hasWebGL());
   const [dpr, setDpr] = useState(1.5);
   const [grabbed, setGrabbed] = useState<RapierRigidBody | null>(null);
   const [lost, setLost] = useState(false);
@@ -87,7 +88,6 @@ export default function HeroScene() {
   const wrap = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(true);
 
-  useEffect(() => setWebgl(hasWebGL()), []);
   useEffect(() => {
     const el = wrap.current;
     if (!el) return;
