@@ -1,0 +1,9 @@
+{
+  "name": "@rumo/ui",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts", "./tokens.css": "./src/tokens.css", "./brand/*": "./brand/*" },
+  "scripts": { "typecheck": "tsc --noEmit" },
+  "peerDependencies": { "react": "^19" },
+  "devDependencies": { "typescript": "5.9.3", "@types/react": "19.3.0" }
+}

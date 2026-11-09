@@ -1,0 +1,48 @@
+/* RUMO — tokens de design. Tema principal claro; branco + azul elétrico.
+   Contraste verificado (WCAG AA) em docs/acessibilidade.md. */
+:root {
+  --rumo-blue: #1f57ff;          /* azul elétrico — ação principal (5,4:1 sobre branco) */
+  --rumo-blue-hover: #1645d6;
+  --rumo-blue-soft: #e8eeff;
+  --rumo-deep: #0b1f4d;          /* azul profundo de apoio */
+  --rumo-surface: #ffffff;
+  --rumo-bg: #f5f8ff;
+  --rumo-ink: #14233b;           /* texto principal (15,8:1) */
+  --rumo-muted: #52627a;         /* texto secundário (6,2:1) */
+  --rumo-border: #dce5f3;
+  --rumo-border-strong: #b9c7de;
+  --rumo-positive: #146c43;      /* verde escuro legível (6,5:1) — sempre com ícone/sinal */
+  --rumo-positive-soft: #e6f4ec;
+  --rumo-warning: #8a5a00;       /* âmbar com contraste (5,9:1) */
+  --rumo-warning-soft: #fff4dc;
+  --rumo-negative: #b42318;      /* vermelho (6,6:1) */
+  --rumo-negative-soft: #fdecea;
+  --rumo-focus: #1f57ff;
+
+  --rumo-font: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --rumo-radius-sm: 8px;
+  --rumo-radius: 12px;
+  --rumo-radius-lg: 18px;
+  --rumo-shadow-sm: 0 1px 2px rgb(11 31 77 / 6%), 0 1px 1px rgb(11 31 77 / 4%);
+  --rumo-shadow: 0 8px 24px -12px rgb(11 31 77 / 18%), 0 2px 6px rgb(11 31 77 / 6%);
+  --rumo-shadow-lg: 0 30px 60px -30px rgb(11 31 77 / 35%);
+
+  --rumo-space-1: 4px;
+  --rumo-space-2: 8px;
+  --rumo-space-3: 12px;
+  --rumo-space-4: 16px;
+  --rumo-space-5: 24px;
+  --rumo-space-6: 32px;
+  --rumo-space-7: 48px;
+  --rumo-space-8: 72px;
+
+  --rumo-touch: 44px;            /* área mínima de toque */
+  --rumo-dur-micro: 160ms;       /* microinterações 120–220 ms */
+  --rumo-dur-scene: 650ms;       /* transições de cena 450–800 ms */
+  --rumo-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --rumo-dur-micro: 0ms; --rumo-dur-scene: 0ms; }
+}
+:root[data-reduce-motion="true"] { --rumo-dur-micro: 0ms; --rumo-dur-scene: 0ms; }
