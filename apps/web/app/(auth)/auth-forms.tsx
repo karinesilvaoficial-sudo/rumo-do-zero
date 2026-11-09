@@ -66,6 +66,7 @@ export function LoginForm({ cfg, next }: { cfg: PublicAuthConfig; next: string }
 
 export function SignupForm({ cfg, next }: { cfg: PublicAuthConfig; next: string }) {
   const sb = useSb(cfg);
+  const router = useRouter();
   const [err, setErr] = useState<string | null>(null);
   const [sent, setSent] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -84,12 +85,14 @@ export function SignupForm({ cfg, next }: { cfg: PublicAuthConfig; next: string 
       const email = String(f.get("email"));
       if (String(f.get("password")) !== String(f.get("password2"))) { setErr("As senhas não coincidem."); return; }
       setBusy(true); setErr(null);
-      const { error } = await sb.auth.signUp({ email, password: String(f.get("password")), options: {
+      const { data, error } = await sb.auth.signUp({ email, password: String(f.get("password")), options: {
         data: { full_name: String(f.get("name")).slice(0, 120) },
         emailRedirectTo: `${cfg.appUrl}/auth/confirm?next=${encodeURIComponent(next)}`,
       } });
       setBusy(false);
       if (error) { setErr(msg(error.message)); return; }
+      // projetos sem confirmação de e-mail já devolvem sessão: segue direto ao onboarding
+      if (data.session) { router.replace(next); router.refresh(); return; }
       setSent(email);
     }}>
       <div><h1>Criar conta</h1><p className="muted" style={{ marginTop: 6 }}>Grátis, sem cartão e sem prazo de expiração.</p></div>

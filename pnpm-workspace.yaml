@@ -1,6 +1,7 @@
 packages:
   - apps/web
   - packages/*
+  - tests
 onlyBuiltDependencies:
   - sharp
   - esbuild

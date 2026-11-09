@@ -1,0 +1,7 @@
+{
+  "name": "@rumo/tests",
+  "private": true,
+  "type": "module",
+  "scripts": { "e2e": "playwright test --trace off" },
+  "devDependencies": { "@playwright/test": "1.63.0", "@axe-core/playwright": "4.14.0" }
+}
