@@ -185,7 +185,8 @@ declare
   bal record;
   rid uuid;
 begin
-  perform private.require_role(ws, 'collaborator');
+  -- leitores também usam IA/voz (consultas), consumindo a franquia do titular
+  perform private.require_role(ws, 'reader');
   if amount <= 0 then raise exception 'invalid_amount'; end if;
   owner := private.workspace_owner(ws);
   select ul.id into rid from public.usage_ledger ul where ul.idempotency_key = idem and ul.owner_id = owner;
@@ -208,7 +209,7 @@ declare r record;
 begin
   select * into r from public.usage_ledger where id = rid for update;
   if not found then raise exception 'reservation_not_found'; end if;
-  perform private.require_role(r.workspace_id, 'collaborator');
+  if r.actor_id is distinct from auth.uid() then raise exception 'forbidden' using errcode = '42501'; end if;
   if r.state <> 'reserved' then return; end if;   -- idempotente
   if actual <= 0 then
     update public.usage_ledger set state = 'released', used = 0, settled_at = now(),

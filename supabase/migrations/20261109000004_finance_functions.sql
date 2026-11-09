@@ -833,6 +833,21 @@ begin
 end $$;
 comment on function private.goal_progress(uuid) is 'rpc';
 
+create or replace function private.card_invoices_summary(ws uuid, p_from date)
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not private.is_member(ws) then raise exception 'forbidden' using errcode = '42501'; end if;
+  return coalesce((
+    select jsonb_agg(jsonb_build_object('id', i.id, 'card_id', i.card_id, 'reference_month', i.reference_month,
+      'closing_date', i.closing_date, 'due_date', i.due_date,
+      'installments_cents', t.installments_cents::text, 'charges_cents', t.charges_cents::text,
+      'paid_cents', t.paid_cents::text, 'total_cents', t.total_cents::text, 'pending_cents', t.pending_cents::text)
+      order by i.due_date)
+    from public.card_invoices i cross join lateral private.invoice_totals(i.id) t
+    where i.workspace_id = ws and (i.due_date >= p_from or t.pending_cents > 0)), '[]'::jsonb);
+end $$;
+comment on function private.card_invoices_summary(uuid, date) is 'rpc';
+
 -- ---------------------------------------------------------------------------
 -- Publicação: wrappers SECURITY INVOKER em public para funções 'rpc'
 -- ---------------------------------------------------------------------------
