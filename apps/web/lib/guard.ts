@@ -53,7 +53,7 @@ export async function rateLimit(bucket: string, max: number, windowSeconds: numb
     if (env().APP_ENV === "production") throw new HttpError(503, "rate_limit_unavailable");
     return;
   }
-  const { data, error } = await supabaseAdmin().schema("private" as "public").rpc("hit_rate_limit", { bucket, max_hits: max, window_seconds: windowSeconds });
+  const { data, error } = await supabaseAdmin().rpc("svc_hit_rate_limit", { bucket, max_hits: max, window_seconds: windowSeconds });
   if (error) throw new HttpError(503, "rate_limit_unavailable");
   if (data === false) throw new HttpError(429, "rate_limited", "Muitas solicitações. Aguarde um pouco.");
 }

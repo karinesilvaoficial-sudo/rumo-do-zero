@@ -5,29 +5,29 @@ import { buildPdf, buildSheet, MIME, REPORT_TTL_DAYS } from "@/lib/reports";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 type Outbox = { id: string; kind: string; dedupe_key: string; payload: Record<string, string>; attempts: number };
-const priv = () => supabaseAdmin().schema("private" as "public");
+const priv = () => supabaseAdmin();
 
 /** Envia e-mails da fila. "Enviado" só após confirmação do provedor; falha volta para nova tentativa. */
 export async function processOutbox(batch = 20) {
   const res = { sent: 0, failed: 0, skipped: 0 };
   if (!integrationStatus().email) return { ...res, note: "email_not_configured" };
-  const { data, error } = await priv().rpc("claim_outbox", { p_kind: "email", p_batch: batch, p_lease_seconds: 120 });
+  const { data, error } = await priv().rpc("svc_claim_outbox", { p_kind: "email", p_batch: batch, p_lease_seconds: 120 });
   if (error) throw new Error(error.message);
   for (const m of (data ?? []) as Outbox[]) {
     try {
       const p = m.payload;
       if (p.template === "due_reminder" && p.commitment_id) {
-        const { data: due } = await priv().rpc("cron_commitment_still_due", { p_commitment: p.commitment_id });
+        const { data: due } = await priv().rpc("svc_cron_commitment_still_due", { p_commitment: p.commitment_id });
         if (!due) { await supabaseAdmin().from("outbox").update({ status: "cancelled", done_at: new Date().toISOString() }).eq("id", m.id); res.skipped++; continue; }
       }
       const cta = p.template === "invitation" ? { href: `/convite/${p.token}`, label: "Aceitar convite" } : p.template === "due_reminder" ? { href: "/app/planejamento", label: "Ver compromissos" } : { href: "/app/assinatura", label: "Abrir o RUMO" };
       const id = await sendEmail(p.to!, p.title!, renderEmail(p.title!, p.body!, cta), m.dedupe_key);
-      await priv().rpc("finish_outbox", { p_id: m.id, p_ok: true, p_error: null, p_provider_ref: id });
+      await priv().rpc("svc_finish_outbox", { p_id: m.id, p_ok: true, p_error: null, p_provider_ref: id });
       // segredo do convite não fica guardado após o envio
       if (p.token) await supabaseAdmin().from("outbox").update({ payload: { ...p, token: null } }).eq("id", m.id);
       res.sent++;
     } catch (e) {
-      await priv().rpc("finish_outbox", { p_id: m.id, p_ok: false, p_error: (e as Error).message, p_provider_ref: null });
+      await priv().rpc("svc_finish_outbox", { p_id: m.id, p_ok: false, p_error: (e as Error).message, p_provider_ref: null });
       res.failed++;
     }
   }
@@ -40,7 +40,7 @@ export async function processReports(max = 2) {
   if (!integrationStatus().analytics) return { ...out, note: "analytics_not_configured" };
   const admin = supabaseAdmin();
   for (let i = 0; i < max; i++) {
-    const { data } = await priv().rpc("claim_report_job", { p_lease_seconds: 240 });
+    const { data } = await priv().rpc("svc_claim_report_job", { p_lease_seconds: 240 });
     const job = (data ?? [])[0] as { id: string; workspace_id: string; requested_by: string; kind: string; params: { from: string; to: string; label?: string } } | undefined;
     if (!job) break;
     try {
