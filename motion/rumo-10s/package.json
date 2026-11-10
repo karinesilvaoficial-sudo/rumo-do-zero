@@ -1,0 +1,22 @@
+{
+  "name": "rumo-motion-10s",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts RumoAd renders/rumo_motion_10s.mp4 --codec=h264 --crf=16",
+    "render:sem-texto": "remotion render src/index.ts RumoAdSemTexto renders/rumo_motion_10s_sem_texto.mp4 --codec=h264 --crf=16",
+    "thumb": "remotion still src/index.ts RumoAd renders/rumo_thumbnail.png --frame=280",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.542",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "remotion": "^4.0.542"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "typescript": "^7.0.2"
+  }
+}
