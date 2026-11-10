@@ -1,6 +1,8 @@
 # RUMO — comercial 10s (Remotion)
 
-1080×1920 · 9:16 · 30 fps · 300 frames · H.264. Sem áudio (nenhuma locução/música foi gerada; inserir locução a partir de 0,0s em edição).
+1080×1920 · 9:16 · 30 fps · 300 frames · H.264 + AAC.
+
+Áudio (ElevenLabs, em `audio/`): locução pt-BR (voz "Brian", modelo multilingual v2) em 4 trechos alinhados às cenas (0,06s · 2,35s · 4,55s · 7,76s), trilha original gerada por IA (sound-generation) com ducking, e whoosh nas transições (1,95s · 4,15s · 7,55s). Mix a -14 LUFS. A versão sem texto leva só trilha + efeitos. Remux: ver comandos ffmpeg no histórico do commit.
 
 ```bash
 npm install
