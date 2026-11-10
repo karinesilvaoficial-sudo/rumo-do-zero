@@ -8,6 +8,7 @@ import { env } from "@/lib/env";
 import { type ActionResult, fail } from "@/lib/errors";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { integrationStatus } from "@/lib/env";
+import { processOutbox } from "@/lib/cron/workers";
 import { currentUser, supabaseServer } from "@/lib/supabase/server";
 import { getCtx, WS_COOKIE } from "@/lib/workspace";
 
@@ -28,6 +29,8 @@ export async function invite(_: unknown, fd: FormData): Promise<ActionResult<{ q
         to: p.data.email, template: "invitation", token, title: `Convite para o espaço ${ctx.active.name}`,
         body: `${ctx.profile.full_name ?? ctx.user.email} convidou você para participar do espaço “${ctx.active.name}” no RUMO. O convite vale por 7 dias e dá acesso apenas a este espaço.` } });
       queued = true;
+      // envio imediato (melhor esforço); se falhar, a tarefa diária reenvia pela fila
+      await processOutbox(5).catch(() => undefined);
     }
     revalidatePath("/app/pessoas");
     return { ok: true, data: { queued } };

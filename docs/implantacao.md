@@ -17,7 +17,7 @@ Testes: `bash supabase/tests/run.sh` (Postgres efêmero com stub mínimo de Supa
 5. Marcar o operador como admin: `update profiles set is_platform_admin = true where id = '<uuid>'` (SQL editor).
 
 ## Vercel
-- Projeto **web**: raiz `apps/web`, framework Next.js, região `gru1`, variáveis do `.env.example`. Crons em `apps/web/vercel.json` (o de 10 min exige plano que permita essa frequência; no Hobby use só o diário). Uso comercial requer plano compatível (não Hobby).
+- Projeto **web**: raiz `apps/web`, framework Next.js, região `gru1`, variáveis do `.env.example`. Cron diário em `apps/web/vercel.json` (compatível com Hobby). No Pro, adicione `/api/cron/frequent` a cada 10 min para fila de e-mails e relatórios grandes; no Hobby, convites são enviados na hora e o restante da fila sai no ciclo diário. Uso comercial requer plano compatível (não Hobby).
 - Projeto **analytics**: raiz `apps/analytics`, runtime Python (FastAPI detectado em `main.py`), variável `RUMO_SERVICE_SECRET` igual à do web.
 
 ## Stripe (modo de teste primeiro)
