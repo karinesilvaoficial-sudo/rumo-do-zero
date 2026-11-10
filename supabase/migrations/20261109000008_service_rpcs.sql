@@ -1,8 +1,9 @@
 -- RUMO · 0008 · Wrappers em public para funções de servidor (somente service_role).
 -- O PostgREST expõe apenas o schema public; estas funções NÃO são executáveis por anon/authenticated.
--- Correção: parâmetro "bucket" ambíguo com a coluna de mesmo nome em private.hit_rate_limit
-drop function if exists private.hit_rate_limit(text, int, int);
-create function private.hit_rate_limit(p_bucket text, p_max_hits int, p_window_seconds int)
+-- Correção: parâmetro "bucket" ambíguo com a coluna de mesmo nome em private.hit_rate_limit.
+-- Nova função (sem DROP); a antiga fica sem uso e sem permissão de execução.
+revoke execute on function private.hit_rate_limit(text, int, int) from public, service_role;
+create or replace function private.hit_rate_limit_v2(p_bucket text, p_max_hits int, p_window_seconds int)
 returns boolean language plpgsql security definer set search_path = '' as $$
 declare
   ws timestamptz := to_timestamp(floor(extract(epoch from now()) / p_window_seconds) * p_window_seconds);
@@ -13,11 +14,11 @@ begin
   returning rl.hits into n;
   return n <= p_max_hits;
 end $$;
-revoke execute on function private.hit_rate_limit(text, int, int) from public;
-grant execute on function private.hit_rate_limit(text, int, int) to service_role;
+revoke execute on function private.hit_rate_limit_v2(text, int, int) from public;
+grant execute on function private.hit_rate_limit_v2(text, int, int) to service_role;
 
 create or replace function public.svc_hit_rate_limit(bucket text, max_hits int, window_seconds int)
-returns boolean language sql security invoker set search_path = '' as $$ select private.hit_rate_limit(bucket, max_hits, window_seconds) $$;
+returns boolean language sql security invoker set search_path = '' as $$ select private.hit_rate_limit_v2(bucket, max_hits, window_seconds) $$;
 create or replace function public.svc_claim_outbox(p_kind text, p_batch int, p_lease_seconds int)
 returns setof public.outbox language sql security invoker set search_path = '' as $$ select * from private.claim_outbox(p_kind, p_batch, p_lease_seconds) $$;
 create or replace function public.svc_finish_outbox(p_id uuid, p_ok boolean, p_error text, p_provider_ref text)
