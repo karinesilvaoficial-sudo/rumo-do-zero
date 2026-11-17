@@ -1,7 +1,7 @@
 import { formatBRL, formatBytes, formatLimit, PLANS } from "@rumo/contracts";
 import { redirect } from "next/navigation";
 import { NotConfigured } from "@/components/states";
-import { env, integrationStatus } from "@/lib/env";
+import { integrationStatus } from "@/lib/env";
 import { fmtDate } from "@/lib/period";
 import { supabaseServer } from "@/lib/supabase/server";
 import { getCtx } from "@/lib/workspace";
@@ -63,7 +63,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
       <section className="card" aria-labelledby="planos">
         <div className="card-header"><h2 id="planos">Mudar de plano</h2></div>
         {!st.billing ? <NotConfigured what="A cobrança (Stripe)" /> : null}
-        <PlanPicker current={e.plan} hasSubscription={Boolean(sub && ["active", "past_due", "trialing"].includes(sub.status))} pixEnabled={env().STRIPE_PIX_ENABLED === "true"} disabled={!st.billing} preselect={sp.plano}
+        <PlanPicker current={e.plan} hasSubscription={Boolean(sub && ["active", "past_due", "trialing"].includes(sub.status))} pixEnabled={st.pix} disabled={!st.billing} preselect={sp.plano}
           plans={PLANS.filter((p) => p.code !== "free").map((p) => ({ code: p.code, name: p.name, monthly: formatBRL(BigInt(p.monthly_cents)), annual: formatBRL(BigInt(p.annual_cents)),
             annualMonthly: formatBRL(BigInt(Math.round(p.annual_cents / 12))), lines: [`${formatLimit(p.max_workspaces)} espaço(s)`, `${formatLimit(p.max_entries_month)} lançamentos/mês`, `${p.ai_credits_month} créditos de IA/mês`, `${p.max_guests} convidados`] }))} />
         <ul className="small muted" style={{ paddingLeft: 18, marginTop: 12 }}>

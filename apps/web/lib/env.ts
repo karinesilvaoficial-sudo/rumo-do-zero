@@ -32,6 +32,14 @@ const ServerEnv = z.object({
   STRIPE_PRICE_UNLIMITED_MONTH: opt,
   STRIPE_PRICE_UNLIMITED_YEAR: opt,
   STRIPE_PIX_ENABLED: z.enum(["true", "false"]).default("false"),
+  // Pix pré-pago via Cakto: id curto da oferta (pay.cakto.com.br/<id>) por plano/período
+  CAKTO_WEBHOOK_SECRET: opt,
+  CAKTO_OFFER_PRO_MONTH: opt,
+  CAKTO_OFFER_PRO_YEAR: opt,
+  CAKTO_OFFER_MAX_MONTH: opt,
+  CAKTO_OFFER_MAX_YEAR: opt,
+  CAKTO_OFFER_UNLIMITED_MONTH: opt,
+  CAKTO_OFFER_UNLIMITED_YEAR: opt,
   RESEND_API_KEY: opt,
   EMAIL_FROM: opt,
   CRON_SECRET: z.string().min(32).optional(),
@@ -53,7 +61,7 @@ export function env(): ServerEnv {
   return cached;
 }
 
-export type Integration = "supabase" | "admin_db" | "analytics" | "ai" | "voice" | "billing" | "email" | "cron";
+export type Integration = "supabase" | "admin_db" | "analytics" | "ai" | "voice" | "billing" | "pix" | "email" | "cron";
 
 export function integrationStatus(): Record<Integration, boolean> {
   const e = env();
@@ -64,6 +72,7 @@ export function integrationStatus(): Record<Integration, boolean> {
     ai: Boolean(e.ANTHROPIC_API_KEY),
     voice: Boolean(e.ELEVENLABS_API_KEY && e.ELEVENLABS_VOICE_ID),
     billing: Boolean(e.STRIPE_SECRET_KEY && e.STRIPE_WEBHOOK_SECRET && e.STRIPE_PRICE_PRO_MONTH),
+    pix: Boolean(e.CAKTO_WEBHOOK_SECRET && (e.CAKTO_OFFER_PRO_MONTH || e.CAKTO_OFFER_MAX_MONTH || e.CAKTO_OFFER_UNLIMITED_MONTH)),
     email: Boolean(e.RESEND_API_KEY && e.EMAIL_FROM),
     cron: Boolean(e.CRON_SECRET),
   };

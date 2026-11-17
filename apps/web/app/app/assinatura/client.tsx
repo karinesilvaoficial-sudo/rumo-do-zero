@@ -45,10 +45,10 @@ export function PlanPicker({ plans, current, hasSubscription, pixEnabled, disabl
               : <div><div className="plan-price num">{p.annual}<span className="small muted">/ano</span></div><p className="small muted">Cobrança única anual · equivale a {p.annualMonthly}/mês</p></div>}
             <ul>{p.lines.map((l) => <li key={l}>{l}</li>)}</ul>
             <button className="btn btn-primary" disabled={disabled || busy !== null} aria-busy={busy === p.code + "card"} onClick={() => go(p.code, "card")}>{busy === p.code + "card" ? "Abrindo…" : hasSubscription ? "Trocar no portal" : "Assinar com cartão"}</button>
-            <button className="btn btn-secondary" disabled={disabled || busy !== null || !pixEnabled || hasSubscription} onClick={() => go(p.code, "pix")} title={!pixEnabled ? "Pix indisponível para esta conta no momento" : hasSubscription ? "Você já tem renovação automática" : undefined}>
+            <button className="btn btn-secondary" disabled={busy !== null || !pixEnabled || hasSubscription} onClick={() => go(p.code, "pix")} title={!pixEnabled ? "Pix indisponível para esta conta no momento" : hasSubscription ? "Você já tem renovação automática" : undefined}>
               {busy === p.code + "pix" ? "Abrindo…" : `Pagar ${interval === "year" ? "12 meses" : "1 mês"} com Pix`}
             </button>
-            {!pixEnabled ? <p className="small muted">Pix ainda não habilitado nesta conta de recebimento.</p> : <p className="small muted">Pix: pré-pago, renovação manual.</p>}
+            {!pixEnabled ? <p className="small muted">Pix ainda não disponível.</p> : <p className="small muted">Pix pela Cakto: pré-pago, renovação manual. O plano é liberado sozinho após a confirmação do pagamento.</p>}
           </article>
         ))}
       </div>
