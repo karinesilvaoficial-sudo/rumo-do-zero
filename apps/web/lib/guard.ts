@@ -17,6 +17,8 @@ export function json(data: unknown, status = 200) {
 export function errorResponse(e: unknown) {
   if (e instanceof HttpError) return json({ error: e.code, message: e.message }, e.status);
   if (e instanceof NotConfiguredError) return json({ error: e.message, message: "Recurso ainda não configurado neste ambiente." }, 503);
+  // corpo malformado ou campos inválidos: erro do cliente (400), nunca 500
+  if (e instanceof SyntaxError || (e instanceof Error && e.name === "ZodError")) return json({ error: "invalid_request", message: "Requisição inválida." }, 400);
   const d = domainError(e);
   const status = d.code === "not_authenticated" ? 401 : d.code === "forbidden" ? 403 : d.code.startsWith("quota_exceeded") ? 402 : d.code === "unknown" ? 500 : 409;
   if (status === 500) console.error("[api]", e instanceof Error ? e.message.slice(0, 200) : "erro"); // sem payload/segredos
