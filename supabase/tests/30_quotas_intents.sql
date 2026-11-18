@@ -24,16 +24,33 @@ begin
   -- estorno não conta como lançamento novo
   perform public.reverse_transaction(ws, (select id from public.transactions where idempotency_key = 'e1' and workspace_id = ws), 1, 'teste');
 
-  -- (18) créditos: reserva → uso real → liberação do não consumido
+  -- (18) créditos: reserva → uso real (liquidado só pelo servidor) → liberação do não consumido
   r1 := public.reserve_usage(ws, 'ai_credits', 2, 'req-1');
-  perform t.eq('reserve idempotent', public.reserve_usage(ws, 'ai_credits', 2, 'req-1'), r1);
+  perform t.throws('reserve replay', format('select public.reserve_usage(%L, %L, 2, %L)', ws, 'ai_credits', 'req-1'), 'duplicate_request');
   perform t.throws('reserve over', format('select public.reserve_usage(%L, %L, 2, %L)', ws, 'ai_credits', 'req-2'), 'quota_exceeded:ai_credits');
-  perform public.settle_usage(r1, 1, 1200, false);             -- usou 1 de 2 → libera 1
+  perform t.throws('user cannot settle', format('select public.settle_usage(%L, 0, null, null)', r1), 'permission denied');
+  perform t.throws('user cannot svc settle', format('select public.svc_settle_usage(%L, 0, null, null)', r1), 'permission denied');
+  insert into ids values ('r1', r1);
+end $$;
+select t.logout();
+select public.svc_settle_usage((select v from ids where k = 'r1'), 1, 1200, false);   -- usou 1 de 2 → libera 1
+select t.login('00000000-0000-0000-0000-00000000000b');
+do $$
+declare ws uuid := (select v from ids where k = 'ws_free'); r2 uuid; ent jsonb;
+begin
   r2 := public.reserve_usage(ws, 'ai_credits', 2, 'req-3');    -- 1 usado + 2 = 3 ok
-  perform public.settle_usage(r2, 0, null, null);               -- falha do provedor → nada consumido
+  insert into ids values ('r2', r2);
+end $$;
+select t.logout();
+select public.svc_settle_usage((select v from ids where k = 'r2'), 999, null, null);   -- acima do reservado → cobra só 2
+select t.eq('settle clamps to reserved', (select used from public.usage_ledger where id = (select v from ids where k = 'r2')), 2);
+select t.login('00000000-0000-0000-0000-00000000000b');
+do $$
+declare ent jsonb;
+begin
   ent := public.my_entitlements();
   perform t.eq('entitlements plan', ent->>'plan', 'free');
-  perform t.eq('ai available', (ent#>>'{usage,ai_credits,available}')::int, 2);
+  perform t.eq('ai available', (ent#>>'{usage,ai_credits,available}')::int, 0);
   perform t.eq('entries count', (ent#>>'{usage,entries}')::int, 100);
 end $$;
 

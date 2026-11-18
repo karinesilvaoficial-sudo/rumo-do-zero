@@ -20,7 +20,7 @@ export function errorResponse(e: unknown) {
   // corpo malformado ou campos inválidos: erro do cliente (400), nunca 500
   if (e instanceof SyntaxError || (e instanceof Error && e.name === "ZodError")) return json({ error: "invalid_request", message: "Requisição inválida." }, 400);
   const d = domainError(e);
-  const status = d.code === "not_authenticated" ? 401 : d.code === "forbidden" ? 403 : d.code.startsWith("quota_exceeded") ? 402 : d.code === "unknown" ? 500 : 409;
+  const status = d.code === "not_authenticated" ? 401 : d.code === "forbidden" ? 403 : d.code.startsWith("quota_exceeded") || d.code === "plan_required" ? 402 : d.code === "unknown" ? 500 : 409;
   if (status === 500) console.error("[api]", e instanceof Error ? e.message.slice(0, 200) : "erro"); // sem payload/segredos
   return json({ error: d.code, message: d.message }, status);
 }
@@ -84,7 +84,8 @@ export async function reserve(workspaceId: string, metric: "ai_credits" | "tts_s
   return data as string;
 }
 
+/** Liquidação só pelo servidor (service_role): o usuário não consegue zerar o próprio consumo. */
 export async function settle(reservationId: string, actual: number, costMicros: number | null = null, estimated: boolean | null = null) {
-  const sb = await supabaseServer();
-  await sb.rpc("settle_usage", { rid: reservationId, actual, cost_micros: costMicros, cost_estimated: estimated });
+  const { error } = await supabaseAdmin().rpc("svc_settle_usage", { rid: reservationId, actual, cost_micros: costMicros, cost_estimated: estimated });
+  if (error) console.error("[settle]", error.message.slice(0, 120));
 }

@@ -9,16 +9,18 @@ import { type ActionResult, fail } from "@/lib/errors";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { integrationStatus } from "@/lib/env";
 import { processOutbox } from "@/lib/cron/workers";
+import { rateLimit } from "@/lib/guard";
 import { currentUser, supabaseServer } from "@/lib/supabase/server";
 import { getCtx, WS_COOKIE } from "@/lib/workspace";
 
 /** Convite: token aleatório de 256 bits; só o hash fica no banco. E-mail via fila (outbox). */
-export async function invite(_: unknown, fd: FormData): Promise<ActionResult<{ queued: boolean }>> {
+export async function invite(_: unknown, fd: FormData): Promise<ActionResult<{ queued: boolean; emailEnabled: boolean; link: string }>> {
   const p = z.object({ email: z.email().max(200), role: z.enum(["admin", "collaborator", "reader"]) }).safeParse(Object.fromEntries(fd));
   if (!p.success) return { ok: false, code: "invalid_input", error: "Informe um e-mail válido e o papel." };
   try {
     const ctx = await getCtx();
     if (!ctx?.active) throw new Error("not_authenticated");
+    await rateLimit(`invite:${ctx.user.id}`, 10, 3600); // anti-spam: até 10 convites por hora
     const token = randomBytes(32).toString("base64url");
     const sb = await supabaseServer();
     const { data: id, error } = await sb.rpc("create_invitation", { ws: ctx.active.id, p_email: p.data.email, p_role: p.data.role, p_token_hash: hashToken(token) });
@@ -33,7 +35,8 @@ export async function invite(_: unknown, fd: FormData): Promise<ActionResult<{ q
       await processOutbox(5).catch(() => undefined);
     }
     revalidatePath("/app/pessoas");
-    return { ok: true, data: { queued } };
+    // o link também volta para quem convidou (só admins/donos chegam aqui), para enviar por WhatsApp se o e-mail falhar
+    return { ok: true, data: { queued, emailEnabled: integrationStatus().email, link: `${env().NEXT_PUBLIC_APP_URL}/convite/${token}` } };
   } catch (e) { return fail(e); }
 }
 

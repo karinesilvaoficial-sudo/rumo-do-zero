@@ -4,8 +4,19 @@ import { LoginForm } from "../auth-forms";
 
 export const metadata = { title: "Entrar" };
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ next?: string; plano?: string }> }) {
+const ERRORS: Record<string, string> = {
+  oauth: "Não foi possível entrar com o Google. Tente de novo ou use e-mail e senha.",
+  link: "Este link expirou ou já foi usado. Peça um novo ou entre com sua senha.",
+};
+
+export default async function Page({ searchParams }: { searchParams: Promise<{ next?: string; plano?: string; erro?: string }> }) {
   const sp = await searchParams;
   const next = safeNext(sp.next, sp.plano ? `/app/assinatura?plano=${encodeURIComponent(sp.plano)}` : "/app");
-  return <LoginForm cfg={publicAuthConfig()} next={next} />;
+  const msg = sp.erro ? ERRORS[sp.erro] : undefined;
+  return (
+    <>
+      {msg ? <div className="alert alert-warn" role="alert" style={{ maxWidth: 440, margin: "16px auto 0" }}>{msg}</div> : null}
+      <LoginForm cfg={publicAuthConfig()} next={next} />
+    </>
+  );
 }

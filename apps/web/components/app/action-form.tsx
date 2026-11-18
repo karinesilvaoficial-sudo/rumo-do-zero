@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import type { ActionResult } from "@/lib/errors";
 import { Alert, SubmitButton } from "@/components/ui";
 
@@ -15,7 +15,7 @@ export function ActionForm({ action, children, submit = "Salvar", success = "Sal
 }) {
   const router = useRouter();
   const [key, setKey] = useState(() => crypto.randomUUID());
-  const [state, run] = useActionState(async (prev: unknown, fd: FormData) => {
+  const [state, run, pending] = useActionState(async (prev: unknown, fd: FormData) => {
     const r = await action(prev, fd);
     if (r.ok) setKey(crypto.randomUUID()); // nova chave de idempotência só após sucesso
     return r;
@@ -32,12 +32,13 @@ export function ActionForm({ action, children, submit = "Salvar", success = "Sal
     }
   }, [state, onDone, resetOnSuccess, router]);
   return (
-    <form ref={form} action={run} className={className} noValidate={false}>
+    // onSubmit (e não action=) para o React não limpar o formulário quando a validação falha
+    <form ref={form} className={className} aria-busy={pending} onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.currentTarget); startTransition(() => run(fd)); }}>
       <input type="hidden" name="idempotency_key" value={key} />
       {children}
       {state && !state.ok ? <Alert tone="error">{state.error}</Alert> : null}
       {state?.ok ? <Alert tone="ok">{success}</Alert> : null}
-      <div className="row"><SubmitButton disabled={disabled}>{submit}</SubmitButton></div>
+      <div className="row"><SubmitButton disabled={disabled} pending={pending}>{submit}</SubmitButton></div>
     </form>
   );
 }
@@ -53,7 +54,7 @@ export function Field({ label, name, hint, children, ...rest }: { label: string;
 }
 
 export function MoneyField({ label, name, required, hint, defaultValue }: { label: string; name: string; required?: boolean; hint?: string; defaultValue?: string }) {
-  return <Field label={label} name={name} hint={hint ?? "Ex.: 1.234,56"} inputMode="decimal" autoComplete="off" required={required} pattern="[-−]?(R\$\s?)?[0-9.]+(,[0-9]{1,2})?" defaultValue={defaultValue} />;
+  return <Field label={label} name={name} hint={hint ?? "Ex.: 1.234,56"} inputMode="decimal" autoComplete="off" required={required} pattern="[\-−]?(R\$\s?)?[0-9.]+(,[0-9]{1,2})?" defaultValue={defaultValue} />;
 }
 
 export function Select({ label, name, options, required, defaultValue, hint }: { label: string; name: string; options: { value: string; label: string }[]; required?: boolean; defaultValue?: string; hint?: string }) {

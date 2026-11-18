@@ -20,7 +20,6 @@ export async function POST(req: NextRequest) {
     assertSameOrigin(req);
     const fd = await req.formData();
     const workspaceId = String(fd.get("workspaceId") ?? "");
-    const declared = Math.min(MAX_SECONDS, Math.max(1, Math.ceil(Number(fd.get("seconds") ?? MAX_SECONDS))));
     const file = fd.get("audio");
     if (!(file instanceof File)) throw new HttpError(400, "no_audio");
     if (file.size > MAX_BYTES) throw new HttpError(413, "audio_too_large", "Gravação muito longa.");
@@ -28,12 +27,13 @@ export async function POST(req: NextRequest) {
     const { user } = await requireMember(workspaceId, "reader");
     await rateLimit(`stt:${user.id}`, 15, 60);
     await assertCostAllowed("voice");
-    reservation = await reserve(workspaceId, "stt_seconds", declared, `stt:${user.id}:${randomUUID()}`);
+    reservation = await reserve(workspaceId, "stt_seconds", MAX_SECONDS, `stt:${user.id}:${randomUUID()}`);
     const { client, sttModel } = eleven();
     const r = await client.speechToText.convert({ file, modelId: sttModel, languageCode: "por", tagAudioEvents: false, diarize: false }, { abortSignal: req.signal });
     const res = r as { text?: string; audioDurationSecs?: number };
-    const used = Math.ceil(res.audioDurationSecs ?? declared);
-    await settle(reservation, Math.min(used, declared), null, res.audioDurationSecs === undefined);
+    // cobra pela duração medida pelo provedor (não pelo valor declarado pelo navegador)
+    const used = Math.ceil(res.audioDurationSecs ?? MAX_SECONDS);
+    await settle(reservation, used, null, res.audioDurationSecs === undefined);
     return json({ text: (res.text ?? "").trim().slice(0, 4000), seconds: used });
   } catch (e) {
     if (reservation) await settle(reservation, 0).catch(() => undefined);

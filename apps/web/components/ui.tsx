@@ -3,8 +3,9 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { Icon } from "./icons";
 
-export function SubmitButton({ children, className = "btn btn-primary", pendingLabel = "Salvando…", disabled }: { children: ReactNode; className?: string; pendingLabel?: string; disabled?: boolean }) {
-  const { pending } = useFormStatus();
+export function SubmitButton({ children, className = "btn btn-primary", pendingLabel = "Salvando…", disabled, pending: forced }: { children: ReactNode; className?: string; pendingLabel?: string; disabled?: boolean; pending?: boolean }) {
+  const status = useFormStatus();
+  const pending = forced ?? status.pending;
   return (
     <button type="submit" className={className} disabled={pending || disabled} aria-busy={pending}>
       {pending ? (<><span className="spinner" aria-hidden />{pendingLabel}</>) : children}

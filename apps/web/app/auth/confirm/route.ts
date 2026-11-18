@@ -3,7 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { safeNext } from "@/lib/safe-redirect";
 import { supabaseServer } from "@/lib/supabase/server";
 
-const TYPES: EmailOtpType[] = ["signup", "recovery", "invite", "email", "email_change", "magiclink"];
+// Só os fluxos usados pelo app: link mágico/convite do Supabase ficam de fora (evita login forçado em conta alheia)
+const TYPES: EmailOtpType[] = ["signup", "email", "recovery", "email_change"];
 
 /** Confirmação de e-mail e recuperação de senha (token_hash). */
 export async function GET(req: NextRequest) {
