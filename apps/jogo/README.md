@@ -35,7 +35,7 @@ npm run typecheck
 |---|---|---|---|
 | Pistola P9 | 17 | 12 | Arma inicial |
 | Submetralhadora Vespa | 13 | 28 | Curta distância, muito rápida |
-| Escopeta Trovão | 8 × 9 | 6 | Devastadora de perto |
+| Escopeta Trovão | 9 × 8 balins | 6 | Devastadora de perto |
 | Fuzil AR-7 | 24 | 30 | Equilibrada, média distância |
 | Rifle Longo | 72 | 5 | Longa distância, lenta |
 
