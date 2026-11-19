@@ -3,7 +3,7 @@ import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { semente, suave } from './util';
 import { criarTexturas, repetir } from './texturas';
 
-export const TAMANHO = 150;
+export const TAMANHO = 220;
 export const METADE = TAMANHO / 2;
 const MARGEM = 2;
 
@@ -12,7 +12,7 @@ export type Caixa = { minX: number; maxX: number; minZ: number; maxZ: number; to
 
 export function altura(x: number, z: number) {
   const ondas = 2.2 * Math.sin(x * 0.045 + 1.3) * Math.cos(z * 0.05) + 1.1 * Math.sin(x * 0.11 + z * 0.07) + 0.45 * Math.sin(z * 0.21 - x * 0.13);
-  return ondas * suave(8, 24, Math.hypot(x, z)); // clareira plana no ponto de partida
+  return ondas;
 }
 
 // Deforma uma geometria com ruído que depende só da posição: vértices duplicados
@@ -37,6 +37,7 @@ export function criarMundo(cena: THREE.Scene, renderer: THREE.WebGLRenderer) {
   const circulos: Circulo[] = [];
   const caixas: Caixa[] = [];
   const solidos: THREE.Object3D[] = [];
+  const paredes: THREE.Object3D[] = []; // só as caixas: usadas para a câmera não atravessar parede
 
   // Céu, sol e neblina de fim de tarde.
   const sol = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(68), THREE.MathUtils.degToRad(215));
@@ -49,7 +50,7 @@ export function criarMundo(cena: THREE.Scene, renderer: THREE.WebGLRenderer) {
   u.mieDirectionalG.value = 0.85;
   u.sunPosition.value.copy(sol);
   cena.add(ceu);
-  cena.fog = new THREE.Fog(0xc9b79a, 60, 260);
+  cena.fog = new THREE.Fog(0xc9b79a, 70, 340);
 
   const pmrem = new THREE.PMREMGenerator(renderer);
   const cenaCeu = new THREE.Scene();
@@ -71,7 +72,7 @@ export function criarMundo(cena: THREE.Scene, renderer: THREE.WebGLRenderer) {
   cena.add(luzSol, luzSol.target);
 
   // Terreno: malha de 150 m com relevo e mistura grama/terra por vértice.
-  const geo = new THREE.PlaneGeometry(TAMANHO + 60, TAMANHO + 60, 168, 168);
+  const geo = new THREE.PlaneGeometry(TAMANHO + 60, TAMANHO + 60, 200, 200);
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position;
   const cores = new Float32Array(pos.count * 3);
@@ -82,21 +83,20 @@ export function criarMundo(cena: THREE.Scene, renderer: THREE.WebGLRenderer) {
     const z = pos.getZ(i);
     pos.setY(i, altura(x, z));
     const seco = suave(0.35, 0.8, 0.5 + 0.5 * Math.sin(x * 0.07 + fases[0]) * Math.cos(z * 0.06 + fases[1]) + 0.2 * Math.sin((x + z) * 0.19 + fases[2]));
-    const pisado = 1 - suave(4, 14, Math.hypot(x, z));
-    const t = Math.max(seco * 0.7, pisado);
+    const t = seco * 0.8;
     cores[i * 3] = 1 + t * 0.35;
     cores[i * 3 + 1] = 1 - t * 0.18;
     cores[i * 3 + 2] = 1 - t * 0.3;
   }
   geo.setAttribute('color', new THREE.BufferAttribute(cores, 3));
   geo.computeVertexNormals();
-  const chao = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ ...repetir(tx.grama, 42, 42), vertexColors: true, roughness: 0.95 }));
+  const chao = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ ...repetir(tx.grama, 56, 56), vertexColors: true, roughness: 0.95 }));
   chao.receiveShadow = true;
   cena.add(chao);
   solidos.push(chao);
 
   const livre = (x: number, z: number, r: number) =>
-    Math.hypot(x, z) > 9 + r &&
+    Math.hypot(x, z + 16) > 4 + r &&
     circulos.every((c) => Math.hypot(c.x - x, c.z - z) > c.r + r + 0.6) &&
     caixas.every((c) => x < c.minX - r - 0.6 || x > c.maxX + r + 0.6 || z < c.minZ - r - 0.6 || z > c.maxZ + r + 0.6);
 
@@ -117,12 +117,13 @@ export function criarMundo(cena: THREE.Scene, renderer: THREE.WebGLRenderer) {
     m.castShadow = m.receiveShadow = true;
     cena.add(m);
     solidos.push(m);
+    paredes.push(m);
     caixas.push({ minX: x - lx / 2, maxX: x + lx / 2, minZ: z - lz / 2, maxZ: z + lz / 2, topo });
     return m;
   }
 
   // Muro do perímetro: o limite dos 150 m.
-  const matMuro = new THREE.MeshStandardMaterial({ ...repetir(tx.concreto, 38, 1.4), color: 0xb9b1a2, roughness: 0.9 });
+  const matMuro = new THREE.MeshStandardMaterial({ ...repetir(tx.concreto, 56, 1.4), color: 0xb9b1a2, roughness: 0.9 });
   for (const [x, z, lx, lz] of [[0, -METADE, TAMANHO + 2, 1.2], [0, METADE, TAMANHO + 2, 1.2], [-METADE, 0, 1.2, TAMANHO + 2], [METADE, 0, 1.2, TAMANHO + 2]]) {
     bloco(x, z, lx, 7.5, lz, matMuro, 6);
   }
@@ -130,7 +131,7 @@ export function criarMundo(cena: THREE.Scene, renderer: THREE.WebGLRenderer) {
   // Contêineres.
   const coresConteiner = [0xb5482a, 0x2f6f8f, 0x4d7a3a, 0xc9a227, 0x7a7d82, 0x8b3f5e];
   const matConteiner = coresConteiner.map((c) => new THREE.MeshStandardMaterial({ ...repetir(tx.chapa, 2, 1), color: c, roughness: 0.55, metalness: 0.5 }));
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < 30; i++) {
     const deitado = rnd() > 0.5;
     const [lx, lz] = deitado ? [6.1, 2.44] : [2.44, 6.1];
     const p = sortear(4);
@@ -150,7 +151,7 @@ export function criarMundo(cena: THREE.Scene, renderer: THREE.WebGLRenderer) {
 
   // Ruínas: paredes de concreto com vãos de porta.
   const matParede = new THREE.MeshStandardMaterial({ ...repetir(tx.concreto, 2, 1), roughness: 0.88 });
-  for (const [cx, cz] of [[-38, -30], [34, 36], [40, -42], [-44, 40]]) {
+  for (const [cx, cz] of [[-38, -30], [34, 36], [40, -42], [-44, 40], [-82, 8], [78, -6], [6, 84], [-10, -86], [84, 78], [-80, -78]]) {
     const L = 11;
     const P = 8;
     const A = 3.4;
@@ -163,7 +164,7 @@ export function criarMundo(cena: THREE.Scene, renderer: THREE.WebGLRenderer) {
 
   // Barreiras baixas, boas para cobertura.
   const matBarreira = new THREE.MeshStandardMaterial({ ...repetir(tx.concreto, 1.5, 0.5), color: 0xd8d2c4, roughness: 0.85 });
-  for (let i = 0; i < 22; i++) {
+  for (let i = 0; i < 44; i++) {
     const p = sortear(2.5);
     if (!p) continue;
     const ao = rnd() > 0.5;
@@ -172,7 +173,7 @@ export function criarMundo(cena: THREE.Scene, renderer: THREE.WebGLRenderer) {
 
   // Caixotes em grupos; os baixos servem de degrau.
   const matCaixote = new THREE.MeshStandardMaterial({ ...tx.caixote, roughness: 0.8 });
-  for (let g = 0; g < 26; g++) {
+  for (let g = 0; g < 52; g++) {
     const p = sortear(2.2);
     if (!p) continue;
     const n = 1 + Math.floor(rnd() * 3);
@@ -213,7 +214,7 @@ export function criarMundo(cena: THREE.Scene, renderer: THREE.WebGLRenderer) {
   for (const [dx, dz] of [[-1.1, -1.1], [1.1, -1.1], [-1.1, 1.1], [1.1, 1.1]]) circulos.push({ x: dx, z: -16 + dz, r: 0.2 });
 
   // Árvores: tronco e três copas, instanciadas.
-  const N_ARV = 130;
+  const N_ARV = 260;
   const troncoGeo = new THREE.CylinderGeometry(0.16, 0.3, 1, 7);
   troncoGeo.translate(0, 0.5, 0);
   const copaGeo = amassar(new THREE.IcosahedronGeometry(1, 2), 0.3, 0.85);
@@ -251,9 +252,9 @@ export function criarMundo(cena: THREE.Scene, renderer: THREE.WebGLRenderer) {
 
   // Pedras.
   const pedraGeo = amassar(new THREE.DodecahedronGeometry(1, 1), 0.36);
-  const pedras = new THREE.InstancedMesh(pedraGeo, new THREE.MeshStandardMaterial({ ...repetir(tx.pedra, 2, 2), roughness: 0.95, flatShading: true }), 46);
+  const pedras = new THREE.InstancedMesh(pedraGeo, new THREE.MeshStandardMaterial({ ...repetir(tx.pedra, 2, 2), roughness: 0.95, flatShading: true }), 90);
   let nPedra = 0;
-  for (let i = 0; i < 46; i++) {
+  for (let i = 0; i < 90; i++) {
     const r = 0.5 + rnd() * rnd() * 1.9;
     const p = sortear(r);
     if (!p) continue;
@@ -270,7 +271,7 @@ export function criarMundo(cena: THREE.Scene, renderer: THREE.WebGLRenderer) {
   const matMorro = new THREE.MeshStandardMaterial({ ...repetir(tx.terra, 10, 6), color: 0x9aa878, roughness: 1 });
   for (let i = 0; i < 22; i++) {
     const ang = (i / 22) * Math.PI * 2 + rnd() * 0.2;
-    const d = 150 + rnd() * 70;
+    const d = TAMANHO + rnd() * 80;
     const h = 16 + rnd() * 30;
     const geoMorro = new THREE.SphereGeometry(1, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2);
     geoMorro.scale(50 + rnd() * 40, h, 50 + rnd() * 40);
@@ -280,18 +281,43 @@ export function criarMundo(cena: THREE.Scene, renderer: THREE.WebGLRenderer) {
     cena.add(morro);
   }
 
-  // Pontos de suprimento fixos, em cima da terra batida.
-  const suprimentos: [number, number][] = [];
-  for (let i = 0; i < 8; i++) {
-    const ang = (i / 8) * Math.PI * 2 + 0.4;
-    const d = i % 2 ? 26 : 52;
-    let x = Math.cos(ang) * d;
-    let z = Math.sin(ang) * d;
-    for (let t = 0; t < 12 && !livre(x, z, 1); t++) {
-      x += 1.3;
-      z -= 0.9;
+  // Pontos onde os itens aparecem, espalhados pelo mapa inteiro.
+  const pontosDeItem: [number, number][] = [];
+  for (let i = 0; i < 400 && pontosDeItem.length < 96; i++) {
+    const p = sortear(0.8, METADE - 6);
+    if (p && pontosDeItem.every((o) => Math.hypot(o[0] - p[0], o[1] - p[1]) > 9)) pontosDeItem.push(p);
+  }
+
+  /** Linha de visão entre dois pontos na altura do peito: bloqueada por caixas altas. */
+  function visao(a: THREE.Vector3, b: THREE.Vector3) {
+    const dx = b.x - a.x;
+    const dz = b.z - a.z;
+    const ya = a.y + 1.4;
+    const yb = b.y + 1.4;
+    for (const c of caixas) {
+      let t0 = 0;
+      let t1 = 1;
+      if (Math.abs(dx) < 1e-6) {
+        if (a.x < c.minX || a.x > c.maxX) continue;
+      } else {
+        const u = (c.minX - a.x) / dx;
+        const v = (c.maxX - a.x) / dx;
+        t0 = Math.max(t0, Math.min(u, v));
+        t1 = Math.min(t1, Math.max(u, v));
+      }
+      if (Math.abs(dz) < 1e-6) {
+        if (a.z < c.minZ || a.z > c.maxZ) continue;
+      } else {
+        const u = (c.minZ - a.z) / dz;
+        const v = (c.maxZ - a.z) / dz;
+        t0 = Math.max(t0, Math.min(u, v));
+        t1 = Math.min(t1, Math.max(u, v));
+      }
+      if (t0 > t1) continue;
+      const tm = (t0 + t1) / 2;
+      if (ya + (yb - ya) * tm < c.topo) return false;
     }
-    suprimentos.push([x, z]);
+    return true;
   }
 
   /** Empurra um círculo para fora dos obstáculos e devolve a altura do piso sob ele. */
@@ -340,21 +366,12 @@ export function criarMundo(cena: THREE.Scene, renderer: THREE.WebGLRenderer) {
     return piso;
   }
 
-  /** Há obstáculo sólido no ponto? Usado por projéteis. */
-  function bloqueado(p: THREE.Vector3) {
-    if (p.y < altura(p.x, p.z)) return true;
-    if (Math.abs(p.x) > METADE || Math.abs(p.z) > METADE) return true;
-    for (const c of caixas) if (p.x > c.minX && p.x < c.maxX && p.z > c.minZ && p.z < c.maxZ && p.y < c.topo) return true;
-    for (const c of circulos) if (c.r > 0 && p.y < altura(c.x, c.z) + 2.5 && Math.hypot(p.x - c.x, p.z - c.z) < c.r) return true;
-    return false;
-  }
-
   function atualizarSol(alvo: THREE.Vector3) {
     luzSol.target.position.set(alvo.x, 0, alvo.z);
     luzSol.position.copy(luzSol.target.position).addScaledVector(sol, 110);
   }
 
-  return { texturas: tx, solidos, caixas, circulos, suprimentos, resolver, bloqueado, livre, atualizarSol };
+  return { texturas: tx, solidos, paredes, caixas, circulos, pontosDeItem, resolver, visao, livre, atualizarSol };
 }
 
 export type Mundo = ReturnType<typeof criarMundo>;

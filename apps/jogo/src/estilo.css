@@ -12,7 +12,7 @@
 
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; overflow: hidden; background: var(--fundo); color: var(--texto); font: 16px/1.5 system-ui, sans-serif; }
-#tela { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+#tela { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 [hidden] { display: none !important; }
 
 .rotulo { font: 600 11px/1 var(--titulo); letter-spacing: 0.14em; text-transform: uppercase; color: var(--apagado); }
@@ -23,18 +23,30 @@ html, body { height: 100%; margin: 0; overflow: hidden; background: var(--fundo)
 .topo div { display: grid; gap: 6px; }
 .topo strong { font-size: 26px; line-height: 1; }
 #mapa { position: absolute; top: 20px; right: 24px; width: 150px; height: 150px; border: 1px solid var(--linha); background: rgba(23, 20, 15, 0.55); }
-.vida { position: absolute; left: 24px; bottom: 24px; display: grid; grid-template-columns: 220px auto; gap: 8px 12px; align-items: center; }
+.vida { position: absolute; left: 24px; bottom: 24px; display: grid; grid-template-columns: 220px auto; gap: 6px 12px; align-items: center; }
 .vida .rotulo { grid-column: 1 / -1; }
+.vida .kits { margin-top: 6px; color: var(--texto); }
+.barra.fina { height: 6px; }
+#colete { height: 100%; width: 0; background: #7fb0d0; transition: width 0.15s; }
+.vida strong + .rotulo { margin-top: 6px; }
 .barra { height: 10px; background: rgba(0, 0, 0, 0.45); border: 1px solid var(--linha); }
 #vida { height: 100%; width: 100%; background: var(--texto); transition: width 0.15s, background 0.3s; }
 .vida strong { font-size: 22px; line-height: 1; }
-.municao { position: absolute; right: 24px; bottom: 24px; text-align: right; display: grid; grid-template-columns: auto auto; column-gap: 8px; align-items: baseline; justify-content: end; }
+.municao { position: absolute; right: 24px; bottom: 24px; text-align: right; display: grid; grid-template-columns: 1fr auto; column-gap: 8px; align-items: baseline; }
 .municao strong { font-size: 52px; line-height: 0.9; }
 .municao #reserva { font-size: 20px; color: var(--apagado); }
-.municao .rotulo { grid-column: 1 / -1; margin-top: 8px; }
+.municao .rotulo { grid-column: 1 / -1; margin-top: 8px; white-space: nowrap; }
 .municao.baixa strong { color: var(--destaque); }
 .aviso { position: absolute; top: 22%; left: 0; right: 0; margin: 0; text-align: center; font: 700 30px/1.1 var(--titulo); letter-spacing: 0.08em; text-transform: uppercase; opacity: 0; transition: opacity 0.4s; }
 .aviso.visivel { opacity: 1; }
+.zona { position: absolute; top: 20px; left: 0; right: 0; margin: 0 auto; width: max-content; padding: 6px 14px; background: rgba(23, 20, 15, 0.6); border: 1px solid var(--linha); font: 600 13px/1 var(--titulo); letter-spacing: 0.12em; text-transform: uppercase; }
+.zona.alerta { border-color: var(--destaque); color: var(--destaque); }
+.feed { position: absolute; top: 182px; right: 24px; margin: 0; padding: 0; list-style: none; text-align: right; font: 12px/1.6 var(--numero); color: var(--apagado); }
+.feed b { color: var(--texto); font-weight: 600; }
+.feed .eu b:first-child { color: var(--destaque); }
+.dica { position: absolute; top: 60%; left: 0; right: 0; margin: 0; text-align: center; font: 600 14px/1 var(--titulo); letter-spacing: 0.1em; text-transform: uppercase; }
+.dica kbd { min-width: 0; margin-right: 8px; border-color: var(--destaque); color: var(--destaque); font-size: 13px; }
+.tempestade { position: absolute; inset: 0; background: rgba(255, 90, 26, 0.16); box-shadow: inset 0 0 120px rgba(255, 90, 26, 0.5); opacity: 0; transition: opacity 0.3s; }
 .dano { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 45%, rgba(229, 67, 45, 0.7) 100%); opacity: 0; }
 
 .mira { position: absolute; left: 50%; top: 50%; --a: 6px; }
@@ -47,6 +59,31 @@ html, body { height: 100%; margin: 0; overflow: hidden; background: var(--fundo)
   linear-gradient(45deg, transparent 46%, var(--destaque) 46% 54%, transparent 54%) no-repeat,
   linear-gradient(-45deg, transparent 46%, var(--destaque) 46% 54%, transparent 54%) no-repeat;
   -webkit-mask: radial-gradient(circle, transparent 4px, #000 5px); mask: radial-gradient(circle, transparent 4px, #000 5px); }
+
+/* Controles de toque */
+#toque { position: fixed; inset: 0; pointer-events: none; touch-action: none; user-select: none; -webkit-user-select: none; }
+#alavanca { position: absolute; left: 110px; top: calc(100% - 120px); width: 112px; height: 112px; margin: -56px 0 0 -56px; border: 2px solid var(--linha); border-radius: 50%; background: rgba(23, 20, 15, 0.3); }
+#alavanca.ativa { border-color: var(--destaque); }
+#pino { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; margin: -24px 0 0 -24px; border-radius: 50%; background: rgba(241, 233, 218, 0.7); }
+.bt { position: absolute; pointer-events: auto; width: 60px; height: 60px; padding: 0; border-radius: 50%; border: 2px solid var(--linha); background: rgba(23, 20, 15, 0.55); color: var(--texto); font: 700 12px/1 var(--titulo); letter-spacing: 0.06em; touch-action: none; }
+.bt.fogo { right: 28px; bottom: 56px; width: 88px; height: 88px; background: rgba(255, 122, 26, 0.75); border-color: var(--destaque); color: #17140f; font-size: 15px; }
+.bt.pular { right: 132px; bottom: 24px; }
+.bt.recarregar { right: 132px; bottom: 98px; }
+.bt.trocar { right: 206px; bottom: 24px; }
+.bt.kit { right: 206px; bottom: 98px; }
+.bt.pegar { right: 42px; bottom: 158px; border-color: var(--destaque); }
+body.toque .topo { top: 12px; left: 16px; gap: 20px; }
+body.toque .topo strong { font-size: 20px; }
+body.toque .vida { bottom: auto; top: 62px; left: 16px; grid-template-columns: 110px auto; gap: 4px 8px; }
+body.toque .vida strong { font-size: 15px; }
+body.toque #mapa { top: 12px; right: 16px; width: 96px; height: 96px; }
+body.toque .municao { bottom: auto; top: 12px; right: 124px; }
+body.toque .municao strong { font-size: 30px; }
+body.toque .municao #reserva { font-size: 14px; }
+body.toque #slots, body.toque .feed { display: none; }
+body.toque .zona { top: 12px; font-size: 11px; }
+body.toque .aviso { top: 24%; font-size: 20px; }
+body.toque .dica { top: 66%; }
 
 /* Menu */
 #menu { position: fixed; inset: 0; display: grid; grid-template-columns: minmax(0, 520px) minmax(0, 300px); gap: 24px; align-content: center; justify-content: center; padding: 24px; background: linear-gradient(100deg, rgba(23, 20, 15, 0.92) 0%, rgba(23, 20, 15, 0.55) 60%, rgba(23, 20, 15, 0.25) 100%); overflow: auto; }
@@ -67,8 +104,8 @@ button { height: 48px; padding: 0 28px; border: 0; background: var(--destaque); 
 button:hover:not(:disabled) { background: #ff9442; }
 button:disabled { background: #5a5246; color: #a89c86; cursor: progress; }
 input:focus-visible, button:focus-visible { outline: 2px solid var(--texto); outline-offset: 2px; }
-.teclas { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 16px; font-size: 14px; color: var(--apagado); }
-kbd { display: inline-block; min-width: 72px; margin-right: 8px; padding: 2px 6px; border: 1px solid var(--linha); font: 12px var(--numero); color: var(--texto); text-align: center; }
+.teclas { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 16px; font-size: 13px; color: var(--apagado); }
+kbd { display: inline-block; min-width: 64px; margin-right: 8px; padding: 2px 6px; border: 1px solid var(--linha); font: 12px var(--numero); color: var(--texto); text-align: center; }
 #ranking { margin: 0; padding: 0; list-style: none; counter-reset: pos; font: 14px var(--numero); font-variant-numeric: tabular-nums; }
 #ranking li { counter-increment: pos; display: grid; grid-template-columns: 24px 1fr auto; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--linha); }
 #ranking li::before { content: counter(pos); color: var(--apagado); }
@@ -81,5 +118,6 @@ kbd { display: inline-block; min-width: 72px; margin-right: 8px; padding: 2px 6p
   #menu { grid-template-columns: minmax(0, 520px); align-content: start; }
   .painel { padding: 24px; }
   .resultado { grid-template-columns: repeat(2, 1fr); }
+  .teclas { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

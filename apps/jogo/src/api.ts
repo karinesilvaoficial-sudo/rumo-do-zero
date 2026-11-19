@@ -1,4 +1,4 @@
-export type Linha = { nome: string; pontos: number; abates: number; onda: number };
+export type Linha = { nome: string; pontos: number; abates: number; colocacao: number };
 type Partida = { id: string; token: string };
 
 async function pedir<T>(rota: string, init?: RequestInit): Promise<T | null> {
@@ -13,6 +13,6 @@ async function pedir<T>(rota: string, init?: RequestInit): Promise<T | null> {
 export const api = {
   ranking: async () => (await pedir<{ ranking: Linha[] }>('/api/ranking?limite=10'))?.ranking ?? null,
   iniciar: () => pedir<Partida>('/api/partidas', { method: 'POST' }),
-  finalizar: (p: Partida, dados: { nome: string; pontos: number; abates: number; onda: number }) =>
-    pedir<{ posicao: number; ranking: Linha[] }>(`/api/partidas/${p.id}/fim`, { method: 'POST', body: JSON.stringify({ token: p.token, ...dados }) }),
+  finalizar: (p: Partida, dados: { nome: string; abates: number; colocacao: number }) =>
+    pedir<{ pontos: number; posicao: number; ranking: Linha[] }>(`/api/partidas/${p.id}/fim`, { method: 'POST', body: JSON.stringify({ token: p.token, ...dados }) }),
 };

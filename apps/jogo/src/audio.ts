@@ -47,10 +47,17 @@ function tom(de: number, ate: number, dur: number, vol: number, forma: Oscillato
 }
 
 export const som = {
-  tiro() {
-    estouro(0.16, 4200, 0.9);
-    tom(190, 55, 0.12, 0.6, 'triangle');
+  /** grave: 0 para arma leve, 1 para escopeta ou rifle. vol cai com a distância. */
+  tiro(vol = 1, grave = 0.4) {
+    if (vol < 0.03) return;
+    estouro(0.12 + grave * 0.16, 5200 - grave * 2600, 0.9 * vol);
+    tom(230 - grave * 90, 55, 0.1 + grave * 0.1, 0.6 * vol, 'triangle');
   },
+  pouso: () => estouro(0.25, 300, 0.6),
+  vitoria() {
+    [440, 554, 659, 880].forEach((f, i) => setTimeout(() => tom(f, f * 1.01, 0.35, 0.3, 'triangle'), i * 140));
+  },
+  zona: () => tom(180, 120, 0.6, 0.25, 'sawtooth'),
   seco: () => tom(900, 700, 0.04, 0.25, 'square'),
   recarga() {
     tom(320, 240, 0.06, 0.25, 'square');

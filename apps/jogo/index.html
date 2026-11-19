@@ -2,7 +2,7 @@
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
     <title>Vale da Sucata</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%2317140f'/%3E%3Ccircle cx='8' cy='8' r='4' fill='none' stroke='%23ff7a1a' stroke-width='1.5'/%3E%3Ccircle cx='8' cy='8' r='1' fill='%23ff7a1a'/%3E%3C/svg%3E" />
     <link rel="stylesheet" href="/src/estilo.css" />
@@ -13,34 +13,52 @@
     <div id="hud" hidden>
       <div class="mira" id="mira"><i></i><i></i><i></i><i></i><b id="marca"></b></div>
       <div class="topo">
-        <div><span class="rotulo">Onda</span><strong id="onda">1</strong></div>
-        <div><span class="rotulo">Robôs</span><strong id="restam">0</strong></div>
-        <div><span class="rotulo">Pontos</span><strong id="pontos">0</strong></div>
+        <div><span class="rotulo">Vivos</span><strong id="vivos">20</strong></div>
+        <div><span class="rotulo">Abates</span><strong id="abates">0</strong></div>
       </div>
+      <p class="zona" id="zona"></p>
       <canvas id="mapa" width="150" height="150" aria-label="Minimapa"></canvas>
+      <ul class="feed" id="feed"></ul>
       <div class="vida">
+        <span class="rotulo">Colete</span>
+        <div class="barra fina"><div id="colete"></div></div>
+        <strong id="coleteNum">0</strong>
         <span class="rotulo">Integridade</span>
         <div class="barra"><div id="vida"></div></div>
         <strong id="vidaNum">100</strong>
+        <span class="rotulo kits" id="kits">Kits de reparo: 0</span>
       </div>
       <div class="municao">
-        <strong id="pente">30</strong><span id="reserva">/ 120</span>
-        <span class="rotulo" id="avisoArma">Fuzil AR-7</span>
+        <strong id="pente">12</strong><span id="reserva">/ 36</span>
+        <span class="rotulo" id="armaNome">Pistola P9</span>
+        <span class="rotulo" id="slots"></span>
       </div>
+      <p class="dica" id="dica"></p>
       <p class="aviso" id="aviso"></p>
       <div class="dano" id="dano"></div>
+      <div class="tempestade" id="tempestade"></div>
+    </div>
+
+    <div id="toque" hidden>
+      <div id="alavanca"><div id="pino"></div></div>
+      <button class="bt fogo" data-acao="fogo" aria-label="Atirar">Tiro</button>
+      <button class="bt pular" data-acao="pular">Pulo</button>
+      <button class="bt recarregar" data-acao="recarregar">Rec.</button>
+      <button class="bt pegar" data-acao="pegar">Pegar</button>
+      <button class="bt trocar" data-acao="trocar">Troca</button>
+      <button class="bt kit" data-acao="kit">Kit</button>
     </div>
 
     <main id="menu">
       <section class="painel">
-        <p class="sobre">Arena aberta · 150 × 150 m</p>
-        <h1>Vale da <em>Sucata</em></h1>
-        <p class="resumo" id="resumo">As máquinas do ferro-velho acordaram. Segure o vale pelo maior número de ondas que conseguir.</p>
+        <p class="sobre" id="sobre">Battle royale · 20 combatentes · 220 m</p>
+        <h1 id="titulo">Vale da <em>Sucata</em></h1>
+        <p class="resumo" id="resumo">Vinte máquinas descem de paraquedas no ferro-velho. Pegue uma arma, fique dentro da zona e seja a última de pé.</p>
         <dl class="resultado" id="resultado" hidden>
-          <div><dt>Pontos</dt><dd id="rPontos">0</dd></div>
+          <div><dt>Colocação</dt><dd id="rCol">—</dd></div>
           <div><dt>Abates</dt><dd id="rAbates">0</dd></div>
-          <div><dt>Onda</dt><dd id="rOnda">1</dd></div>
-          <div><dt>Posição</dt><dd id="rPos">—</dd></div>
+          <div><dt>Pontos</dt><dd id="rPontos">0</dd></div>
+          <div><dt>Ranking</dt><dd id="rPos">—</dd></div>
         </dl>
         <form id="form">
           <label for="nome">Seu nome no ranking</label>
@@ -49,13 +67,15 @@
             <button id="jogar" type="submit" disabled>Carregando…</button>
           </div>
         </form>
-        <ul class="teclas">
-          <li><kbd>W A S D</kbd> mover</li>
+        <ul class="teclas" id="teclas">
+          <li><kbd>W A S D</kbd> mover e guiar o paraquedas</li>
           <li><kbd>Mouse</kbd> mirar e atirar</li>
+          <li><kbd>E</kbd> pegar arma</li>
+          <li><kbd>1 2</kbd> ou roda: trocar arma</li>
           <li><kbd>R</kbd> recarregar</li>
+          <li><kbd>Q</kbd> usar kit de reparo</li>
           <li><kbd>Shift</kbd> correr</li>
           <li><kbd>Espaço</kbd> pular</li>
-          <li><kbd>Esc</kbd> pausar</li>
         </ul>
       </section>
       <aside class="painel ranking">

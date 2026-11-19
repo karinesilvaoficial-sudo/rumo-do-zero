@@ -1,4 +1,4 @@
-// Backend do Vale da Sucata: partidas, validação de pontuação e ranking.
+// Backend do Vale da Sucata: partidas, validação do resultado e ranking.
 // Sem dependências externas: http e sqlite nativos do Node 22.
 import http from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
@@ -9,25 +9,22 @@ import { fileURLToPath } from 'node:url';
 
 const RAIZ = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
-// Limites usados para recusar pontuações impossíveis.
-export const LIMITES = {
-  pontosPorSegundo: 220, // ritmo máximo plausível, com folga
-  pontosPorAbate: 350, // um brutamontes com tiro na cabeça
-  abatesPorSegundo: 1.2,
-  duracaoMinimaMs: 5_000,
-  duracaoMaximaMs: 3 * 60 * 60 * 1000,
-};
+export const TOTAL = 20; // combatentes por partida: 1 pessoa e 19 robôs
 
-export function validarResultado({ pontos, abates, onda, duracaoMs }) {
-  const inteiros = [pontos, abates, onda].every((n) => Number.isInteger(n) && n >= 0);
-  if (!inteiros) return 'valores inválidos';
-  if (duracaoMs < LIMITES.duracaoMinimaMs) return 'partida curta demais';
-  if (duracaoMs > LIMITES.duracaoMaximaMs) return 'partida expirada';
+// A pontuação é calculada aqui, a partir do que a partida permite: o cliente não envia pontos.
+export function pontuar({ abates, colocacao }) {
+  return abates * 100 + (TOTAL - colocacao) * 40 + (colocacao === 1 ? 500 : 0);
+}
+
+export function validarResultado({ abates, colocacao, duracaoMs }) {
+  if (!Number.isInteger(abates) || !Number.isInteger(colocacao)) return 'valores inválidos';
+  if (abates < 0 || abates > TOTAL - 1) return 'abates fora do limite da partida';
+  if (colocacao < 1 || colocacao > TOTAL) return 'colocação inválida';
+  if (duracaoMs < 8_000) return 'partida curta demais';
+  if (duracaoMs > 60 * 60 * 1000) return 'partida expirada';
   const seg = duracaoMs / 1000;
-  if (abates > seg * LIMITES.abatesPorSegundo + 5) return 'abates incompatíveis com o tempo';
-  if (onda > abates / 4 + 2) return 'onda incompatível com os abates';
-  const teto = abates * LIMITES.pontosPorAbate + onda * 250 * onda;
-  if (pontos > teto || pontos > seg * LIMITES.pontosPorSegundo + 500) return 'pontuação incompatível com a partida';
+  if (abates > seg / 3 + 1) return 'abates incompatíveis com o tempo';
+  if (colocacao === 1 && seg < 45) return 'vitória rápida demais';
   return null;
 }
 
@@ -53,15 +50,15 @@ export function criarApp({ arquivoBanco = ':memory:', pastaEstatica = path.join(
       nome TEXT,
       pontos INTEGER,
       abates INTEGER,
-      onda INTEGER
+      colocacao INTEGER
     );
     CREATE INDEX IF NOT EXISTS partidas_ranking ON partidas (pontos DESC) WHERE fim IS NOT NULL;
   `);
   const q = {
     criar: db.prepare('INSERT INTO partidas (id, token, inicio) VALUES (?, ?, ?)'),
     buscar: db.prepare('SELECT * FROM partidas WHERE id = ?'),
-    finalizar: db.prepare('UPDATE partidas SET fim = ?, nome = ?, pontos = ?, abates = ?, onda = ? WHERE id = ? AND fim IS NULL'),
-    ranking: db.prepare('SELECT nome, pontos, abates, onda, fim FROM partidas WHERE fim IS NOT NULL ORDER BY pontos DESC, fim ASC LIMIT ?'),
+    finalizar: db.prepare('UPDATE partidas SET fim = ?, nome = ?, pontos = ?, abates = ?, colocacao = ? WHERE id = ? AND fim IS NULL'),
+    ranking: db.prepare('SELECT nome, pontos, abates, colocacao, fim FROM partidas WHERE fim IS NOT NULL ORDER BY pontos DESC, fim ASC LIMIT ?'),
     posicao: db.prepare('SELECT COUNT(*) + 1 AS pos FROM partidas WHERE fim IS NOT NULL AND pontos > ?'),
     limpar: db.prepare('DELETE FROM partidas WHERE fim IS NULL AND inicio < ?'),
   };
@@ -102,7 +99,7 @@ export function criarApp({ arquivoBanco = ':memory:', pastaEstatica = path.join(
 
     if (req.method === 'POST' && url.pathname === '/api/partidas') {
       if (excedeu(ip)) return json(res, 429, { erro: 'muitas requisições' });
-      q.limpar.run(agora() - LIMITES.duracaoMaximaMs);
+      q.limpar.run(agora() - 60 * 60 * 1000);
       const id = randomUUID();
       const token = randomBytes(24).toString('hex');
       q.criar.run(id, token, agora());
@@ -124,12 +121,13 @@ export function criarApp({ arquivoBanco = ':memory:', pastaEstatica = path.join(
       const b = Buffer.from(partida.token);
       if (a.length !== b.length || !timingSafeEqual(a, b)) return json(res, 403, { erro: 'token inválido' });
       if (partida.fim) return json(res, 409, { erro: 'partida já finalizada' });
-      const resultado = { pontos: corpo.pontos, abates: corpo.abates, onda: corpo.onda, duracaoMs: agora() - partida.inicio };
+      const resultado = { abates: corpo.abates, colocacao: corpo.colocacao, duracaoMs: agora() - partida.inicio };
       const motivo = validarResultado(resultado);
       if (motivo) return json(res, 422, { erro: motivo });
       const nome = limparNome(corpo.nome);
-      q.finalizar.run(agora(), nome, resultado.pontos, resultado.abates, resultado.onda, partida.id);
-      return json(res, 200, { nome, posicao: q.posicao.get(resultado.pontos).pos, ranking: q.ranking.all(10) });
+      const pontos = pontuar(resultado);
+      q.finalizar.run(agora(), nome, pontos, resultado.abates, resultado.colocacao, partida.id);
+      return json(res, 200, { nome, pontos, posicao: q.posicao.get(pontos).pos, ranking: q.ranking.all(10) });
     }
 
     return json(res, 404, { erro: 'rota não encontrada' });
@@ -171,7 +169,7 @@ export function criarApp({ arquivoBanco = ':memory:', pastaEstatica = path.join(
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const porta = Number(process.env.PORT) || 8787;
-  const arquivoBanco = process.env.BANCO ?? path.join(RAIZ, 'dados', 'jogo.sqlite');
+  const arquivoBanco = process.env.BANCO ?? path.join(RAIZ, 'dados', 'batalha.sqlite');
   if (arquivoBanco !== ':memory:') await (await import('node:fs/promises')).mkdir(path.dirname(arquivoBanco), { recursive: true });
   criarApp({ arquivoBanco }).servidor.listen(porta, () => console.log(`Vale da Sucata em http://localhost:${porta}`));
 }
