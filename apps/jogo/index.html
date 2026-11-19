@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vale da Sucata</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%2317140f'/%3E%3Ccircle cx='8' cy='8' r='4' fill='none' stroke='%23ff7a1a' stroke-width='1.5'/%3E%3Ccircle cx='8' cy='8' r='1' fill='%23ff7a1a'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/src/estilo.css" />
+  </head>
+  <body>
+    <canvas id="tela"></canvas>
+
+    <div id="hud" hidden>
+      <div class="mira" id="mira"><i></i><i></i><i></i><i></i><b id="marca"></b></div>
+      <div class="topo">
+        <div><span class="rotulo">Onda</span><strong id="onda">1</strong></div>
+        <div><span class="rotulo">Robôs</span><strong id="restam">0</strong></div>
+        <div><span class="rotulo">Pontos</span><strong id="pontos">0</strong></div>
+      </div>
+      <canvas id="mapa" width="150" height="150" aria-label="Minimapa"></canvas>
+      <div class="vida">
+        <span class="rotulo">Integridade</span>
+        <div class="barra"><div id="vida"></div></div>
+        <strong id="vidaNum">100</strong>
+      </div>
+      <div class="municao">
+        <strong id="pente">30</strong><span id="reserva">/ 120</span>
+        <span class="rotulo" id="avisoArma">Fuzil AR-7</span>
+      </div>
+      <p class="aviso" id="aviso"></p>
+      <div class="dano" id="dano"></div>
+    </div>
+
+    <main id="menu">
+      <section class="painel">
+        <p class="sobre">Arena aberta · 150 × 150 m</p>
+        <h1>Vale da <em>Sucata</em></h1>
+        <p class="resumo" id="resumo">As máquinas do ferro-velho acordaram. Segure o vale pelo maior número de ondas que conseguir.</p>
+        <dl class="resultado" id="resultado" hidden>
+          <div><dt>Pontos</dt><dd id="rPontos">0</dd></div>
+          <div><dt>Abates</dt><dd id="rAbates">0</dd></div>
+          <div><dt>Onda</dt><dd id="rOnda">1</dd></div>
+          <div><dt>Posição</dt><dd id="rPos">—</dd></div>
+        </dl>
+        <form id="form">
+          <label for="nome">Seu nome no ranking</label>
+          <div class="linha">
+            <input id="nome" maxlength="16" autocomplete="nickname" placeholder="Anônimo" />
+            <button id="jogar" type="submit" disabled>Carregando…</button>
+          </div>
+        </form>
+        <ul class="teclas">
+          <li><kbd>W A S D</kbd> mover</li>
+          <li><kbd>Mouse</kbd> mirar e atirar</li>
+          <li><kbd>R</kbd> recarregar</li>
+          <li><kbd>Shift</kbd> correr</li>
+          <li><kbd>Espaço</kbd> pular</li>
+          <li><kbd>Esc</kbd> pausar</li>
+        </ul>
+      </section>
+      <aside class="painel ranking">
+        <h2>Ranking</h2>
+        <ol id="ranking"><li class="vazio">Carregando…</li></ol>
+      </aside>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
