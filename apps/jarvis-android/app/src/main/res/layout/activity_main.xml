@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:fitsSystemWindows="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:letterSpacing="0.4"
+            android:text="J.A.R.V.I.S."
+            android:textColor="@color/ciano"
+            android:textSize="14sp" />
+
+        <br.jarvis.app.ReatorView
+            android:id="@+id/reator"
+            android:layout_width="220dp"
+            android:layout_height="220dp"
+            android:layout_marginTop="8dp" />
+
+        <TextView
+            android:id="@+id/status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textColor="@color/texto"
+            android:textSize="20sp" />
+
+        <TextView
+            android:id="@+id/ouvido"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:gravity="center"
+            android:textColor="@color/texto_fraco"
+            android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/resposta"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:gravity="center"
+            android:textColor="@color/ciano"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/aviso"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:gravity="center"
+            android:textColor="@color/alerta"
+            android:textSize="14sp"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/botaoPrincipal"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="18dp"
+            android:background="@drawable/botao_principal"
+            android:text="@string/iniciar"
+            android:textAllCaps="false"
+            android:textColor="@color/fundo"
+            android:textSize="17sp" />
+
+        <Button
+            android:id="@+id/botaoFalar"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/botao_secundario"
+            android:text="@string/falar_agora"
+            android:textAllCaps="false"
+            android:textColor="@color/ciano"
+            android:textSize="16sp"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:background="@drawable/cartao"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <Switch
+                android:id="@+id/chaveVoz"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="@string/ativar_por_voz"
+                android:textColor="@color/texto"
+                android:textSize="15sp" />
+
+            <Switch
+                android:id="@+id/chavePalmas"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="@string/ativar_por_palmas"
+                android:textColor="@color/texto"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/rotuloSensibilidade"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/sensibilidade"
+                android:textColor="@color/texto_fraco"
+                android:textSize="14sp" />
+
+            <SeekBar
+                android:id="@+id/sensibilidade"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:max="9" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/botaoSobrepor"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/botao_secundario"
+            android:text="@string/permitir_sobrepor"
+            android:textAllCaps="false"
+            android:textColor="@color/alerta"
+            android:textSize="15sp"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/botaoBateria"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/botao_secundario"
+            android:text="@string/permitir_bateria"
+            android:textAllCaps="false"
+            android:textColor="@color/alerta"
+            android:textSize="15sp"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/cartao"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/titulo_comandos"
+                android:textColor="@color/ciano"
+                android:textSize="15sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:lineSpacingExtra="5dp"
+                android:text="@string/comandos"
+                android:textColor="@color/texto"
+                android:textSize="15sp" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

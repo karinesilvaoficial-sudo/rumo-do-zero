@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Jarvis</string>
+    <string name="iniciar">Ativar o Jarvis</string>
+    <string name="parar">Desativar</string>
+    <string name="falar_agora">Falar um comando agora</string>
+    <string name="ativar_por_voz">Acordar quando eu disser “Jarvis”</string>
+    <string name="ativar_por_palmas">Acordar com 3 palmas seguidas</string>
+    <string name="sensibilidade">Sensibilidade das palmas</string>
+    <string name="permitir_sobrepor">Permitir abrir apps em segundo plano</string>
+    <string name="permitir_bateria">Não deixar o sistema pausar o Jarvis</string>
+    <string name="titulo_comandos">O que você pode dizer</string>
+    <string name="comandos">“Jarvis, abrir YouTube”\n“Que horas são?” · “Que dia é hoje?”\n“Pesquisar receita de bolo”\n“Tocar Legião Urbana”\n“Ligar a lanterna” · “Desligar a lanterna”\n“Aumentar o volume” · “Silenciar”\n“Timer de 5 minutos”\n“Alarme para 7 e meia”\n“Como está a bateria?”\n“Desligar” (para de escutar)</string>
+    <string name="notificacao_canal">Jarvis escutando</string>
+    <string name="notificacao_texto">Diga “Jarvis” ou bata 3 palmas</string>
+</resources>

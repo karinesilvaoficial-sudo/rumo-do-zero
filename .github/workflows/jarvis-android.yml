@@ -1,0 +1,49 @@
+name: Jarvis Android
+
+on:
+  push:
+    paths:
+      - "apps/jarvis-android/**"
+      - ".github/workflows/jarvis-android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    name: Gerar APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/jarvis-android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Baixar modelo de voz
+        run: ./scripts/baixar-modelo.sh
+
+      - name: Como o modelo escreve "Jarvis"
+        continue-on-error: true
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq espeak-ng ffmpeg
+          pip install -q vosk
+          python scripts/sondar-palavra-chave.py app/src/main/assets/model-pt
+
+      - name: Testes e APK
+        run: ./gradlew :core:test :app:assembleDebug --stacktrace
+
+      - name: Renomear APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk jarvis.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jarvis-apk
+          path: apps/jarvis-android/jarvis.apk

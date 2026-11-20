@@ -1,0 +1,20 @@
+package br.jarvis.core
+
+/** Reconhece a palavra de ativação ("Jarvis") dentro do texto ouvido. */
+object PalavraChave {
+    /**
+     * Formas como o reconhecedor costuma escrever "Jarvis".
+     * São comparadas com o texto já normalizado (sem acentos, minúsculo).
+     */
+    val formas = listOf("jarvis", "jarvas", "jarves", "jarviz", "jarbas", "jarvi", "djarvis", "jervis", "jarvys")
+
+    /** Resultado: se a palavra foi dita e o que veio depois dela. */
+    data class Resultado(val ativou: Boolean, val resto: String)
+
+    fun procurar(texto: String): Resultado {
+        val palavras = Texto.normalizar(texto).split(" ").filter { it.isNotEmpty() }
+        val i = palavras.indexOfFirst { it in formas }
+        if (i < 0) return Resultado(false, "")
+        return Resultado(true, palavras.drop(i + 1).joinToString(" "))
+    }
+}
