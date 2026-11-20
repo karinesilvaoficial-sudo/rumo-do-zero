@@ -239,6 +239,13 @@ class JarvisService : Service() {
                 if (lidas < 0) throw IllegalStateException("leitura do microfone falhou ($lidas)")
                 if (lidas == 0) continue
 
+                var pico = 0
+                for (i in 0 until lidas) {
+                    val v = bloco[i].toInt()
+                    if (v > pico) pico = v else if (-v > pico) pico = -v
+                }
+                Estado.nivel = (pico / 9000f).coerceAtMost(1f)
+
                 if (usarPalmas && detector.processar(bloco, lidas)) {
                     ativou = true
                     break
@@ -265,6 +272,7 @@ class JarvisService : Service() {
                 principal.postDelayed({ if (Estado.fase == Fase.AGUARDANDO) iniciarEscuta() }, 5000)
             }
         } finally {
+            Estado.nivel = 0f
             try { gravador?.stop() } catch (_: Exception) {}
             gravador?.release()
             reconhecedorDeFundo?.close()
@@ -322,6 +330,7 @@ class JarvisService : Service() {
         fun resolver(texto: String?, erro: Int = 0) {
             if (resolvido || encerrado) return
             resolvido = true
+            Estado.nivel = 0f
             principal.removeCallbacksAndMessages(FICHA_TEMPO_ESGOTADO)
             descartarReconhecedor()
             when {
@@ -346,7 +355,10 @@ class JarvisService : Service() {
             override fun onError(erro: Int) = resolver(null, erro)
             override fun onReadyForSpeech(params: Bundle?) {}
             override fun onBeginningOfSpeech() {}
-            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onRmsChanged(rmsdB: Float) {
+                // O reconhecedor informa o volume em decibéis, mais ou menos de -2 a 10.
+                Estado.nivel = ((rmsdB + 2f) / 12f).coerceIn(0f, 1f)
+            }
             override fun onBufferReceived(buffer: ByteArray?) {}
             override fun onEndOfSpeech() {}
             override fun onPartialResults(parciais: Bundle?) {}

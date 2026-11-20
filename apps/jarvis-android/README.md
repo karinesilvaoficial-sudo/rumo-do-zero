@@ -6,6 +6,13 @@ comando, executa e responde falando.
 
 Este app é independente do restante do repositório.
 
+![Estados do painel](docs/previa-painel.png)
+
+O painel é animado e cada movimento mostra algo: os anéis giram mais rápido quando
+o Jarvis está pensando, as barras em volta do núcleo acompanham o som do microfone
+enquanto ele ouve, e uma onda se abre do centro quando ele é chamado. (A imagem é
+uma prévia desenhada com as mesmas medidas do app, não uma captura do celular.)
+
 ## O que ele entende
 
 Chame ("Jarvis" ou 3 palmas), espere ele responder "Sim?" e diga o comando.

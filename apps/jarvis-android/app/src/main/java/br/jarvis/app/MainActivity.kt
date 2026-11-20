@@ -1,6 +1,7 @@
 package br.jarvis.app
 
 import android.Manifest
+import android.animation.ValueAnimator
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -31,6 +32,9 @@ class MainActivity : Activity() {
     private lateinit var rotuloSensibilidade: TextView
 
     private val aoMudar: () -> Unit = { atualizar() }
+    private var faseAnterior = Fase.PARADO
+    private var digitacao: ValueAnimator? = null
+    private var respostaMostrada = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -157,16 +161,19 @@ class MainActivity : Activity() {
     private fun atualizar() {
         val fase = Estado.fase
         reator.fase = fase
-        status.text = when (fase) {
+        // Saiu de "aguardando" para ouvir ou falar: foi chamado.
+        if (faseAnterior == Fase.AGUARDANDO && (fase == Fase.FALANDO || fase == Fase.OUVINDO)) reator.chamar()
+        faseAnterior = fase
+        trocarTexto(status, when (fase) {
             Fase.PARADO -> "Desativado"
             Fase.CARREGANDO -> "Preparando a escuta…"
             Fase.AGUARDANDO -> "Aguardando você chamar"
             Fase.OUVINDO -> "Ouvindo…"
             Fase.PENSANDO -> "Pensando…"
             Fase.FALANDO -> "Respondendo…"
-        }
-        ouvido.text = if (Estado.ouvido.isEmpty()) "" else "“${Estado.ouvido}”"
-        resposta.text = Estado.resposta
+        })
+        trocarTexto(ouvido, if (Estado.ouvido.isEmpty()) "" else "“${Estado.ouvido}”")
+        digitar(Estado.resposta)
         aviso.text = Estado.aviso
         aviso.visibility = if (Estado.aviso.isEmpty()) View.GONE else View.VISIBLE
 
@@ -178,6 +185,39 @@ class MainActivity : Activity() {
         val energia = getSystemService(PowerManager::class.java)
         botaoBateria.visibility =
             if (energia.isIgnoringBatteryOptimizations(packageName)) View.GONE else View.VISIBLE
+    }
+
+    /** Troca o texto com uma passagem rápida, para a mudança de estado ser percebida. */
+    private fun trocarTexto(campo: TextView, novo: String) {
+        // `tag` guarda o texto a caminho, para não reiniciar a passagem a cada atualização.
+        if ((campo.tag ?: campo.text.toString()) == novo) return
+        campo.tag = novo
+        campo.animate().cancel()
+        if (!ValueAnimator.areAnimatorsEnabled() || campo.text.isEmpty()) {
+            campo.text = novo
+            campo.alpha = 1f
+            return
+        }
+        campo.animate().alpha(0f).setDuration(110).withEndAction {
+            campo.text = novo
+            campo.animate().alpha(1f).setDuration(180)
+        }
+    }
+
+    /** Escreve a resposta letra a letra, acompanhando o início da fala. */
+    private fun digitar(texto: String) {
+        if (texto == respostaMostrada) return
+        respostaMostrada = texto
+        digitacao?.cancel()
+        if (texto.isEmpty() || !ValueAnimator.areAnimatorsEnabled()) {
+            resposta.text = texto
+            return
+        }
+        digitacao = ValueAnimator.ofInt(0, texto.length).apply {
+            duration = (texto.length * 22L).coerceIn(200L, 1800L)
+            addUpdateListener { resposta.text = texto.substring(0, it.animatedValue as Int) }
+            start()
+        }
     }
 
     companion object {

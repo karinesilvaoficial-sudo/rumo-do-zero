@@ -13,6 +13,8 @@ object Estado {
     @Volatile var ouvido = ""
     @Volatile var resposta = ""
     @Volatile var aviso = ""
+    /** Volume do que o microfone está ouvindo agora, de 0 a 1. Lido pelo painel a cada quadro. */
+    @Volatile var nivel = 0f
     /** A tela do Jarvis está visível? (apps só podem ser abertos livremente nesse caso) */
     @Volatile var telaVisivel = false
 
