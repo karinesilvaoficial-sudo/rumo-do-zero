@@ -8,9 +8,11 @@ Este app é independente do restante do repositório.
 
 ## O que ele entende
 
+Chame ("Jarvis" ou 3 palmas), espere ele responder "Sim?" e diga o comando.
+
 | Você diz | O que acontece |
 | --- | --- |
-| "Jarvis, abrir YouTube" | Abre o app pelo nome (qualquer app instalado) |
+| "Jarvis" … "abrir YouTube" | Abre o app pelo nome (qualquer app instalado) |
 | "Jarvis abrir" | Abre a tela do próprio Jarvis |
 | "Que horas são?" / "Que dia é hoje?" | Responde falando |
 | "Pesquisar receita de bolo" | Pesquisa na internet |
@@ -34,9 +36,10 @@ Este app é independente do restante do repositório.
 
 - **Escuta de fundo**: um serviço com notificação fixa lê o microfone o tempo todo.
   O áudio passa por dois detectores: o de palmas (`core/DetectorPalmas.kt`) e um
-  reconhecedor de fala offline (Vosk, modelo em português) que procura a palavra
-  "Jarvis". Nada desse áudio sai do aparelho.
-- **Comando**: depois de acordar, o Jarvis usa o reconhecimento de voz do próprio
+  reconhecedor de fala offline (Vosk) que só conhece a palavra "Jarvis". Nada
+  desse áudio sai do aparelho. O modelo é o de inglês porque o de português não
+  tem "Jarvis" no vocabulário.
+- **Comando**: depois de acordar, o Jarvis responde "Sim?" e usa o reconhecimento de voz do próprio
   Android para entender a frase, que é interpretada em `core/Interpretador.kt` e
   executada em `app/.../Executor.kt`.
 - O microfone é usado por uma coisa de cada vez: enquanto o Jarvis fala ou ouve o

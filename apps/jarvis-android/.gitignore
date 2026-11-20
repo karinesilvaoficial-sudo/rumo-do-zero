@@ -3,5 +3,5 @@ build/
 local.properties
 *.apk
 # Modelo de voz (baixado por scripts/baixar-modelo.sh)
-app/src/main/assets/model-pt/
+app/src/main/assets/model-en/
 .kotlin/

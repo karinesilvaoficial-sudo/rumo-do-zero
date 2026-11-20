@@ -77,9 +77,6 @@ class Executor(private val contexto: Context) {
         Comando.Vazio -> Resposta("Não ouvi nada.")
     }
 
-    /** Existe um app instalado com esse nome? Usado para decidir se dá para agir sem perguntar de novo. */
-    fun conheceApp(nome: String): Boolean = acharApp(nome) != null || atalho(nome) != null
-
     private fun listarApps(): List<App> {
         val pm = contexto.packageManager
         val consulta = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)

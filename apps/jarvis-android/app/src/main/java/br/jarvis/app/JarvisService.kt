@@ -102,7 +102,7 @@ class JarvisService : Service() {
         }
 
         // O modelo de voz vem dentro do APK e é copiado para o aparelho no primeiro uso.
-        StorageService.unpack(this, "model-pt", "modelo",
+        StorageService.unpack(this, "model-en", "modelo",
             { m ->
                 if (encerrado) m.close() else {
                     modelo = m
@@ -123,7 +123,7 @@ class JarvisService : Service() {
             ACAO_PARAR -> stopSelf()
             ACAO_ATIVAR -> if (Estado.fase == Fase.AGUARDANDO) {
                 pararEscuta()
-                aoAtivar("")
+                aoAtivar()
             }
             ACAO_RECARREGAR -> if (Estado.fase == Fase.AGUARDANDO) {
                 pararEscuta()
@@ -217,7 +217,6 @@ class JarvisService : Service() {
         var gravador: AudioRecord? = null
         var reconhecedorDeFundo: Recognizer? = null
         var ativou = false
-        var resto = ""
         try {
             val minimo = AudioRecord.getMinBufferSize(TAXA, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
             gravador = AudioRecord(
@@ -225,10 +224,12 @@ class JarvisService : Service() {
                 AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(minimo, TAXA)
             )
             if (gravador.state != AudioRecord.STATE_INITIALIZED) throw IllegalStateException("microfone ocupado")
-            if (modeloDeVoz != null) reconhecedorDeFundo = Recognizer(modeloDeVoz, TAXA.toFloat())
+            // O reconhecedor só conhece as palavras de GRAMATICA: o nome e algumas
+            // parecidas, que servem para não confundir outras falas com "Jarvis".
+            if (modeloDeVoz != null) reconhecedorDeFundo = Recognizer(modeloDeVoz, TAXA.toFloat(), GRAMATICA)
             val detector = DetectorPalmas(TAXA, 3, limiar)
             val bloco = ShortArray(TAXA / 10)
-            var nomeOuvidoEm = 0L
+            var blocosComNome = 0
 
             gravador.startRecording()
             while (escutando) {
@@ -238,21 +239,16 @@ class JarvisService : Service() {
 
                 if (usarPalmas && detector.processar(bloco, lidas)) {
                     ativou = true
-                    resto = ""
                     break
                 }
                 val rec = reconhecedorDeFundo ?: continue
                 val fimDaFrase = rec.acceptWaveForm(bloco, lidas)
                 val texto = if (fimDaFrase) JSONObject(rec.result).optString("text")
                 else JSONObject(rec.partialResult).optString("partial")
-                val achado = PalavraChave.procurar(texto)
-                if (achado.ativou) {
-                    if (nomeOuvidoEm == 0L) nomeOuvidoEm = SystemClock.elapsedRealtime()
-                    resto = achado.resto
-                }
-                // Depois de ouvir o nome, espera a frase acabar para aproveitar um
-                // comando dito junto ("Jarvis, que horas são?"), mas sem demorar.
-                if (nomeOuvidoEm != 0L && (fimDaFrase || SystemClock.elapsedRealtime() - nomeOuvidoEm > ESPERA_DA_FRASE_MS)) {
+                // Vale quando a frase termina com o nome, ou quando o palpite parcial
+                // se mantém por alguns blocos seguidos (evita disparo por um palpite passageiro).
+                blocosComNome = if (PalavraChave.procurar(texto).ativou) blocosComNome + 1 else 0
+                if (blocosComNome >= (if (fimDaFrase) 1 else BLOCOS_PARA_CONFIRMAR)) {
                     ativou = true
                     break
                 }
@@ -272,35 +268,22 @@ class JarvisService : Service() {
             reconhecedorDeFundo?.close()
         }
         if (ativou) {
-            val dito = resto
             principal.post {
                 if (minhaGeracao != geracao || encerrado) return@post
                 escutando = false
                 fio = null
-                aoAtivar(dito)
+                aoAtivar()
             }
         }
     }
 
     // ---------------------------------------------------------------- conversa
 
-    /** O Jarvis foi chamado. [dito] é o que veio junto com o nome, se veio algo. */
-    private fun aoAtivar(dito: String) {
+    /** O Jarvis foi chamado: avisa que está pronto e ouve o comando. */
+    private fun aoAtivar() {
         vibrar()
-        Estado.mudar { aviso = "" }
-        val comando = if (dito.isBlank()) Comando.Vazio else Interpretador.interpretar(dito)
-        val daParaAgirDireto = when (comando) {
-            Comando.Vazio, is Comando.Desconhecido -> false
-            is Comando.AbrirApp -> executor.conheceApp(comando.nome)
-            else -> true
-        }
-        if (daParaAgirDireto) {
-            Estado.mudar { ouvido = dito }
-            responder(comando)
-        } else {
-            Estado.mudar { ouvido = ""; resposta = "" }
-            falar("Às ordens.") { ouvirComando() }
-        }
+        Estado.mudar { aviso = ""; ouvido = ""; resposta = "" }
+        falar("Sim?") { ouvirComando() }
     }
 
     private fun ouvirComando() {
@@ -408,7 +391,9 @@ class JarvisService : Service() {
         private const val CANAL = "jarvis"
         private const val ID_NOTIFICACAO = 1
         private const val TAXA = 16000
-        private const val ESPERA_DA_FRASE_MS = 2500L
+        /** Blocos de 100 ms seguidos em que o nome precisa aparecer no palpite parcial. */
+        private const val BLOCOS_PARA_CONFIRMAR = 3
+        private const val GRAMATICA = "[\"jarvis\", \"service\", \"harvest\", \"travis\", \"nervous\", \"jar\", \"[unk]\"]"
         private val FICHA_TEMPO_ESGOTADO = Any()
 
         const val ACAO_PARAR = "br.jarvis.app.PARAR"

@@ -3,8 +3,9 @@ package br.jarvis.core
 /** Reconhece a palavra de ativação ("Jarvis") dentro do texto ouvido. */
 object PalavraChave {
     /**
-     * Formas como o reconhecedor costuma escrever "Jarvis".
-     * São comparadas com o texto já normalizado (sem acentos, minúsculo).
+     * Formas como o nome pode chegar escrito. A escuta de fundo sempre devolve
+     * "jarvis"; as outras aparecem quando o reconhecedor do Android transcreve
+     * um comando em que a pessoa repetiu o nome.
      */
     val formas = listOf("jarvis", "jarvas", "jarves", "jarviz", "jarbas", "jarvi", "djarvis", "jervis", "jarvys")
 
