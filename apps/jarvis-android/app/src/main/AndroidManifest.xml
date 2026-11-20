@@ -13,6 +13,10 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+    <!-- Para a inteligência ver e criar compromissos e achar o telefone de um contato pelo nome. -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
 
     <uses-feature android:name="android.hardware.microphone" android:required="true" />
 
@@ -28,6 +32,13 @@
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE" />
         </intent>
+        <!-- Rascunho de e-mail e conversa do WhatsApp. -->
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
+        </intent>
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
     </queries>
 
     <application
@@ -51,5 +62,16 @@
             android:name=".JarvisService"
             android:exported="false"
             android:foregroundServiceType="microphone" />
+
+        <!-- Lê as notificações dos outros apps (mensagens do WhatsApp, e-mails) depois que a pessoa libera. -->
+        <service
+            android:name=".OuvinteDeNotificacoes"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

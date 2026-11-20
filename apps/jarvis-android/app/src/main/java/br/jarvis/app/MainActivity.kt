@@ -29,6 +29,8 @@ class MainActivity : Activity() {
     private lateinit var botaoFalar: Button
     private lateinit var botaoSobrepor: Button
     private lateinit var botaoBateria: Button
+    private lateinit var botaoAgenda: Button
+    private lateinit var botaoMensagens: Button
     private lateinit var rotuloSensibilidade: TextView
 
     private val aoMudar: () -> Unit = { atualizar() }
@@ -55,6 +57,8 @@ class MainActivity : Activity() {
         botaoFalar = findViewById(R.id.botaoFalar)
         botaoSobrepor = findViewById(R.id.botaoSobrepor)
         botaoBateria = findViewById(R.id.botaoBateria)
+        botaoAgenda = findViewById(R.id.botaoAgenda)
+        botaoMensagens = findViewById(R.id.botaoMensagens)
         rotuloSensibilidade = findViewById(R.id.rotuloSensibilidade)
 
         botaoPrincipal.setOnClickListener {
@@ -99,10 +103,16 @@ class MainActivity : Activity() {
             campoChave.clearFocus()
             getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(campoChave.windowToken, 0)
             mostrarEstadoDaChave()
+            atualizar()
         }
 
         botaoSobrepor.setOnClickListener {
             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+        }
+        botaoAgenda.setOnClickListener { requestPermissions(PERMISSOES_DA_AGENDA, PEDIDO_AGENDA) }
+        botaoMensagens.setOnClickListener {
+            // O Android só libera a leitura de notificações por esta tela de configurações.
+            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
         botaoBateria.setOnClickListener {
             try {
@@ -149,6 +159,11 @@ class MainActivity : Activity() {
 
     override fun onRequestPermissionsResult(codigo: Int, permissoes: Array<out String>, resultados: IntArray) {
         super.onRequestPermissionsResult(codigo, permissoes, resultados)
+        if (codigo == PEDIDO_AGENDA) {
+            if (!temAgenda()) Estado.mudar { aviso = "Sem esse acesso o Jarvis não vê a agenda nem os contatos. Se o botão não abrir mais o pedido, libere em Configurações > Apps > Jarvis > Permissões." }
+            atualizar()
+            return
+        }
         if (codigo != PEDIDO_PERMISSOES) return
         // Só o microfone é indispensável; sem notificações o Jarvis funciona, apenas sem o aviso na barra.
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
@@ -182,10 +197,16 @@ class MainActivity : Activity() {
         botaoFalar.visibility = if (fase == Fase.AGUARDANDO) View.VISIBLE else View.GONE
 
         botaoSobrepor.visibility = if (Settings.canDrawOverlays(this)) View.GONE else View.VISIBLE
+        // Agenda, contatos e mensagens só servem à inteligência: os botões aparecem depois de salvar a chave.
+        val comInteligencia = preferencias.chaveIa.isNotEmpty()
+        botaoAgenda.visibility = if (comInteligencia && !temAgenda()) View.VISIBLE else View.GONE
+        botaoMensagens.visibility = if (comInteligencia && !Caixa.acessoLiberado(this)) View.VISIBLE else View.GONE
         val energia = getSystemService(PowerManager::class.java)
         botaoBateria.visibility =
             if (energia.isIgnoringBatteryOptimizations(packageName)) View.GONE else View.VISIBLE
     }
+
+    private fun temAgenda() = PERMISSOES_DA_AGENDA.all { checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
 
     /** Troca o texto com uma passagem rápida, para a mudança de estado ser percebida. */
     private fun trocarTexto(campo: TextView, novo: String) {
@@ -222,5 +243,9 @@ class MainActivity : Activity() {
 
     companion object {
         private const val PEDIDO_PERMISSOES = 10
+        private const val PEDIDO_AGENDA = 11
+        private val PERMISSOES_DA_AGENDA = arrayOf(
+            Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR, Manifest.permission.READ_CONTACTS,
+        )
     }
 }

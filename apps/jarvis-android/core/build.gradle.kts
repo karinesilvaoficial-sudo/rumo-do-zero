@@ -16,6 +16,8 @@ kotlin {
 }
 
 dependencies {
+    // Cliente oficial do Claude: o agente (conversa + ferramentas) mora aqui para poder ser testado sem celular.
+    api("com.anthropic:anthropic-java:3.3.0")
     testImplementation(kotlin("test"))
 }
 

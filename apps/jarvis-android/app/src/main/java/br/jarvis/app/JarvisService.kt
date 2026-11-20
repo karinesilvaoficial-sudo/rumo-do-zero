@@ -33,6 +33,7 @@ import android.util.Log
 import br.jarvis.core.Comando
 import br.jarvis.core.DetectorPalmas
 import br.jarvis.core.Interpretador
+import br.jarvis.core.Roteador
 import br.jarvis.core.PalavraChave
 import org.json.JSONObject
 import org.vosk.Model
@@ -336,7 +337,11 @@ class JarvisService : Service() {
             when {
                 !texto.isNullOrBlank() -> {
                     Estado.mudar { ouvido = texto }
-                    responder(Interpretador.interpretar(texto))
+                    val comando = Interpretador.interpretar(texto)
+                    // Uma confirmação pendente ("posso enviar?") recebe a fala inteira, seja ela qual for.
+                    val confirmando = cerebro?.aguardandoConfirmacao == true
+                    if (confirmando || Roteador.paraAInteligencia(texto, comando, preferencias.chaveIa.isNotBlank())) conversar(texto)
+                    else responder(comando)
                 }
                 erro == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS ->
                     falar("Preciso da permissão do microfone.") { iniciarEscuta() }
@@ -409,7 +414,7 @@ class JarvisService : Service() {
             responder(Comando.Pesquisar(texto))
             return
         }
-        val mente = cerebro?.takeIf { it.chave == chave } ?: Cerebro(chave).also { cerebro = it }
+        val mente = cerebro?.takeIf { it.chave == chave } ?: Cerebro(this, chave, executor).also { cerebro = it }
         Estado.mudar { fase = Fase.PENSANDO; resposta = "" }
         thread(name = "jarvis-conversa") {
             val dito = mente.perguntar(texto)

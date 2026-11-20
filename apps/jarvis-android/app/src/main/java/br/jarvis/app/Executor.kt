@@ -74,7 +74,8 @@ class Executor(private val contexto: Context) {
         Comando.Agradecimento -> Resposta("Disponha.")
         Comando.Ajuda -> Resposta(
             "Posso abrir aplicativos, dizer as horas, pesquisar na internet, tocar músicas no YouTube, " +
-                "ligar a lanterna, mudar o volume, criar alarmes e temporizadores, e conversar sobre qualquer assunto.",
+                "ligar a lanterna, mudar o volume, criar alarmes e temporizadores, e conversar sobre qualquer assunto. " +
+                "Com a chave da inteligência, também vejo sua agenda, leio as mensagens que chegam e respondo no WhatsApp.",
             Depois.OUVIR_DE_NOVO
         )
         Comando.Desligar -> Resposta("Até logo.", Depois.DESLIGAR)
@@ -124,7 +125,7 @@ class Executor(private val contexto: Context) {
      * Abre uma tela. Devolve `null` se deu certo, ou a resposta explicando o problema.
      * Fora da tela do Jarvis, o Android só deixa abrir outras telas com a permissão de sobrepor.
      */
-    private fun abrir(intent: Intent): Resposta? {
+    internal fun abrir(intent: Intent): Resposta? {
         if (!Estado.telaVisivel && !Settings.canDrawOverlays(contexto)) {
             Estado.mudar { aviso = "Para abrir apps com o Jarvis em segundo plano, toque em “Permitir aparecer na tela e abrir apps”." }
             return Resposta("Preciso da permissão para abrir aplicativos em segundo plano. Abra o Jarvis e toque no botão de permissão.")

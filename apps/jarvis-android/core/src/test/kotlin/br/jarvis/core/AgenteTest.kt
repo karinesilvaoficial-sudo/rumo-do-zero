@@ -1,0 +1,220 @@
+package br.jarvis.core
+
+import com.sun.net.httpserver.HttpServer
+import java.net.InetSocketAddress
+import java.util.concurrent.ConcurrentLinkedQueue
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertContains
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+/** Testa o agente contra um servidor local que imita a API, com respostas combinadas. */
+class AgenteTest {
+    private lateinit var servidor: HttpServer
+    private val respostas = ConcurrentLinkedQueue<String>()
+    private val pedidos = ArrayList<String>()
+    private val enviadas = ArrayList<String>()
+    private var agora = 1_000_000L
+
+    @BeforeTest
+    fun subir() {
+        servidor = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+        servidor.createContext("/") { troca ->
+            synchronized(pedidos) { pedidos.add(troca.requestBody.readBytes().toString(Charsets.UTF_8)) }
+            val corpo = (respostas.poll() ?: """{"type":"error","error":{"type":"api_error","message":"sem resposta combinada"}}""")
+                .toByteArray()
+            troca.responseHeaders.add("content-type", "application/json")
+            troca.sendResponseHeaders(if (String(corpo).startsWith("{\"type\":\"error\"")) 500 else 200, corpo.size.toLong())
+            troca.responseBody.use { it.write(corpo) }
+        }
+        servidor.start()
+    }
+
+    @AfterTest
+    fun descer() = servidor.stop(0)
+
+    private fun mensagem(parada: String, vararg blocos: String) =
+        """{"id":"msg_1","type":"message","role":"assistant","model":"claude-opus-5-5","content":[${blocos.joinToString(",")}],""" +
+            """"stop_reason":"$parada","stop_sequence":null,"usage":{"input_tokens":10,"output_tokens":5}}"""
+
+    private fun texto(t: String) = """{"type":"text","text":"$t"}"""
+    private fun uso(id: String, nome: String, entrada: String) = """{"type":"tool_use","id":"$id","name":"$nome","input":$entrada}"""
+    private val raciocinio = """{"type":"thinking","thinking":"","signature":"assinatura-abc"}"""
+
+    private fun agente(): Agente {
+        val agenda = Ferramenta(
+            nome = "agenda_ver",
+            descricao = "Lista os compromissos.",
+            parametros = mapOf("dias" to Parametro("integer", "Quantos dias à frente.", obrigatorio = false)),
+        ) { a -> "Dentista às 15h (dias=${a.inteiro("dias", 1)})" }
+        val responder = Ferramenta(
+            nome = "whatsapp_responder",
+            descricao = "Responde uma conversa.",
+            parametros = mapOf(
+                "conversa" to Parametro("string", "Nome da conversa."),
+                "texto" to Parametro("string", "Texto a enviar."),
+            ),
+            confirmar = { a -> "Vou responder ${a.texto("conversa")}: ${a.texto("texto")}. Posso enviar?" },
+        ) { a ->
+            enviadas.add(a.texto("conversa") + "|" + a.texto("texto"))
+            "Enviado."
+        }
+        val quebrada = Ferramenta("quebrada", "Sempre falha.") { throw FalhaDeFerramenta("Sem acesso à agenda.") }
+        return Agente(
+            chave = "chave-de-teste",
+            ferramentas = listOf(agenda, responder, quebrada),
+            instrucoes = { "Você é o Jarvis." },
+            enderecoDaApi = "http://127.0.0.1:${servidor.address.port}",
+            relogio = { agora },
+        )
+    }
+
+    @Test
+    fun `resposta simples vira fala e entra no historico`() {
+        respostas.add(mensagem("end_turn", texto("Tudo certo.")))
+        respostas.add(mensagem("end_turn", texto("De nada.")))
+        val a = agente()
+
+        assertEquals("Tudo certo.", a.ouvir("tudo bem?"))
+        assertEquals("De nada.", a.ouvir("obrigado"))
+
+        // O segundo pedido leva a troca anterior junto.
+        assertContains(pedidos[1], "tudo bem?")
+        assertContains(pedidos[1], "Tudo certo.")
+        // E todo pedido declara o modelo, as ferramentas e a rede de segurança contra recusas.
+        assertContains(pedidos[0], "\"model\":\"claude-opus-5-5\"")
+        assertContains(pedidos[0], "\"name\":\"agenda_ver\"")
+        assertContains(pedidos[0], "\"fallbacks\":\"default\"")
+        assertContains(pedidos[0], "\"effort\":\"low\"")
+    }
+
+    @Test
+    fun `executa a ferramenta pedida e devolve o resultado ao modelo`() {
+        respostas.add(mensagem("tool_use", raciocinio, uso("toolu_1", "agenda_ver", """{"dias":2}""")))
+        respostas.add(mensagem("end_turn", texto("Você tem dentista às três da tarde.")))
+        val a = agente()
+
+        assertEquals("Você tem dentista às três da tarde.", a.ouvir("o que tenho amanhã?"))
+
+        assertEquals(2, pedidos.size)
+        val segundo = pedidos[1]
+        assertContains(segundo, "\"tool_use_id\":\"toolu_1\"")
+        assertContains(segundo, "Dentista às 15h (dias=2)")
+        // O raciocínio do modelo volta intacto, como a API exige.
+        assertContains(segundo, "assinatura-abc")
+    }
+
+    @Test
+    fun `falha de ferramenta volta como erro e a conversa continua`() {
+        respostas.add(mensagem("tool_use", uso("toolu_1", "quebrada", "{}"), uso("toolu_2", "inexistente", "{}")))
+        respostas.add(mensagem("end_turn", texto("Não tenho acesso à agenda.")))
+        val a = agente()
+
+        assertEquals("Não tenho acesso à agenda.", a.ouvir("veja a agenda"))
+        assertContains(pedidos[1], "Sem acesso à agenda.")
+        assertContains(pedidos[1], "\"is_error\":true")
+        assertContains(pedidos[1], "\"tool_use_id\":\"toolu_2\"")
+    }
+
+    @Test
+    fun `envio so acontece depois do sim`() {
+        respostas.add(mensagem("tool_use", uso("toolu_9", "whatsapp_responder", """{"conversa":"Ana","texto":"Chego às 8"}""")))
+        respostas.add(mensagem("end_turn", texto("Enviei para a Ana.")))
+        val a = agente()
+
+        val pergunta = a.ouvir("responde a Ana que chego às 8")
+        assertEquals("Vou responder Ana: Chego às 8. Posso enviar?", pergunta)
+        assertTrue(a.aguardandoConfirmacao)
+        assertTrue(enviadas.isEmpty(), "nada pode sair antes da confirmação")
+        assertEquals(1, pedidos.size)
+
+        assertEquals("Enviei para a Ana.", a.ouvir("sim, pode mandar"))
+        assertEquals(listOf("Ana|Chego às 8"), enviadas)
+        assertFalse(a.aguardandoConfirmacao)
+        assertContains(pedidos[1], "\"tool_use_id\":\"toolu_9\"")
+        assertContains(pedidos[1], "Enviado.")
+    }
+
+    @Test
+    fun `sem o sim nada e enviado e o modelo recebe a resposta da pessoa`() {
+        respostas.add(mensagem("tool_use", uso("toolu_9", "whatsapp_responder", """{"conversa":"Ana","texto":"Chego às 8"}""")))
+        respostas.add(mensagem("end_turn", texto("Certo, não enviei.")))
+        val a = agente()
+
+        a.ouvir("responde a Ana que chego às 8")
+        assertEquals("Certo, não enviei.", a.ouvir("não, deixa pra lá"))
+
+        assertTrue(enviadas.isEmpty())
+        assertFalse(a.aguardandoConfirmacao)
+        assertContains(pedidos[1], "não confirmou")
+        assertContains(pedidos[1], "deixa pra lá")
+        assertContains(pedidos[1], "\"is_error\":true")
+    }
+
+    @Test
+    fun `confirmacao vence e um sim tardio nao envia nada`() {
+        respostas.add(mensagem("tool_use", uso("toolu_9", "whatsapp_responder", """{"conversa":"Ana","texto":"Chego às 8"}""")))
+        respostas.add(mensagem("end_turn", texto("Sim o quê?")))
+        val a = agente()
+
+        a.ouvir("responde a Ana que chego às 8")
+        agora += 5 * 60_000
+        assertFalse(a.aguardandoConfirmacao)
+        assertEquals("Sim o quê?", a.ouvir("sim"))
+
+        assertTrue(enviadas.isEmpty())
+        // A fala tardia começa um pedido novo, sem resultado de ferramenta.
+        assertFalse(pedidos[1].contains("tool_use_id"))
+    }
+
+    @Test
+    fun `dois envios na mesma resposta - so um fica para confirmar`() {
+        respostas.add(
+            mensagem(
+                "tool_use",
+                uso("toolu_1", "agenda_ver", "{}"),
+                uso("toolu_2", "whatsapp_responder", """{"conversa":"Ana","texto":"Oi"}"""),
+                uso("toolu_3", "whatsapp_responder", """{"conversa":"Beto","texto":"Oi"}"""),
+            )
+        )
+        respostas.add(mensagem("end_turn", texto("Enviei para a Ana. Quer que eu envie para o Beto?")))
+        val a = agente()
+
+        assertEquals("Vou responder Ana: Oi. Posso enviar?", a.ouvir("manda oi pra Ana e pro Beto"))
+        a.ouvir("pode")
+
+        assertEquals(listOf("Ana|Oi"), enviadas)
+        // Os três pedidos de ferramenta recebem resultado na mesma mensagem.
+        for (id in listOf("toolu_1", "toolu_2", "toolu_3")) assertContains(pedidos[1], "\"tool_use_id\":\"$id\"")
+        assertContains(pedidos[1], "um envio por vez")
+    }
+
+    @Test
+    fun `recusa do modelo vira uma fala e nao trava a conversa`() {
+        respostas.add(mensagem("refusal"))
+        respostas.add(mensagem("end_turn", texto("Olá.")))
+        val a = agente()
+
+        assertEquals("Com isso eu não posso ajudar.", a.ouvir("pedido recusado"))
+        assertEquals("Olá.", a.ouvir("oi"))
+        assertFalse(pedidos[1].contains("pedido recusado"), "o pedido recusado não deve voltar no histórico")
+    }
+
+    @Test
+    fun `erro da api vira uma fala clara`() {
+        // Sem resposta combinada, o servidor devolve erro 500 (o cliente tenta duas vezes).
+        val fala = agente().ouvir("oi")
+        assertEquals("A inteligência recusou o pedido. Confira se a conta da chave tem créditos.", fala)
+    }
+
+    @Test
+    fun `laco de ferramentas tem limite`() {
+        repeat(20) { respostas.add(mensagem("tool_use", uso("toolu_$it", "agenda_ver", "{}"))) }
+        val fala = agente().ouvir("fique em laço")
+        assertEquals("Não consegui concluir isso agora. Tente pedir de outro jeito.", fala)
+        assertEquals(8, pedidos.size)
+    }
+}

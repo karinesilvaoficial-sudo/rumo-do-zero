@@ -205,6 +205,30 @@
             android:textSize="15sp"
             android:visibility="gone" />
 
+        <Button
+            android:id="@+id/botaoAgenda"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/botao_secundario"
+            android:text="@string/permitir_agenda"
+            android:textAllCaps="false"
+            android:textColor="@color/alerta"
+            android:textSize="15sp"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/botaoMensagens"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/botao_secundario"
+            android:text="@string/permitir_mensagens"
+            android:textAllCaps="false"
+            android:textColor="@color/alerta"
+            android:textSize="15sp"
+            android:visibility="gone" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
