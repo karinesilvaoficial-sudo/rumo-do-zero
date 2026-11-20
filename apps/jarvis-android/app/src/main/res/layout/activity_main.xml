@@ -125,6 +125,62 @@
                 android:max="9" />
         </LinearLayout>
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/cartao"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/titulo_ia"
+                android:textColor="@color/ciano"
+                android:textSize="15sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/explicacao_ia"
+                android:textColor="@color/texto_fraco"
+                android:textSize="13sp" />
+
+            <EditText
+                android:id="@+id/campoChave"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:hint="@string/dica_chave"
+                android:importantForAutofill="no"
+                android:inputType="textPassword"
+                android:singleLine="true"
+                android:textColor="@color/texto"
+                android:textColorHint="@color/texto_fraco"
+                android:textSize="15sp" />
+
+            <Button
+                android:id="@+id/botaoSalvarChave"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/botao_secundario"
+                android:text="@string/salvar_chave"
+                android:textAllCaps="false"
+                android:textColor="@color/ciano"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/estadoChave"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textColor="@color/texto_fraco"
+                android:textSize="13sp" />
+        </LinearLayout>
+
         <Button
             android:id="@+id/botaoSobrepor"
             android:layout_width="match_parent"

@@ -5,7 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import java.util.concurrent.CopyOnWriteArrayList
 
-enum class Fase { PARADO, CARREGANDO, AGUARDANDO, OUVINDO, FALANDO }
+enum class Fase { PARADO, CARREGANDO, AGUARDANDO, OUVINDO, PENSANDO, FALANDO }
 
 /** Situação atual do Jarvis, compartilhada entre o serviço e a tela. */
 object Estado {
@@ -39,6 +39,11 @@ class Preferencias(contexto: Context) {
     var palmas: Boolean
         get() = p.getBoolean("palmas", true)
         set(v) = p.edit().putBoolean("palmas", v).apply()
+
+    /** Chave da API do Claude, para conversar e responder perguntas. Fica só neste aparelho. */
+    var chaveIa: String
+        get() = p.getString("chaveIa", "") ?: ""
+        set(v) = p.edit().putString("chaveIa", v.trim()).apply()
 
     /** De 1 (só palmas fortes) a 10 (palmas fracas ou distantes). */
     var sensibilidade: Int

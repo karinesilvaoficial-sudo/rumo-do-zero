@@ -10,7 +10,9 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
 import android.view.View
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
+import android.widget.EditText
 import android.widget.SeekBar
 import android.widget.Switch
 import android.widget.TextView
@@ -32,6 +34,11 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Quando o Jarvis é chamado, a tela acende e ele aparece mesmo com o celular bloqueado.
+        if (Build.VERSION.SDK_INT >= 27) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        }
         setContentView(R.layout.activity_main)
         preferencias = Preferencias(this)
 
@@ -75,6 +82,20 @@ class MainActivity : Activity() {
             override fun onStartTrackingTouch(b: SeekBar) {}
             override fun onStopTrackingTouch(b: SeekBar) = JarvisService.enviar(this@MainActivity, JarvisService.ACAO_RECARREGAR)
         })
+
+        val campoChave = findViewById<EditText>(R.id.campoChave)
+        val estadoChave = findViewById<TextView>(R.id.estadoChave)
+        fun mostrarEstadoDaChave() {
+            estadoChave.setText(if (preferencias.chaveIa.isEmpty()) R.string.chave_ausente else R.string.chave_salva)
+        }
+        mostrarEstadoDaChave()
+        findViewById<Button>(R.id.botaoSalvarChave).setOnClickListener {
+            preferencias.chaveIa = campoChave.text.toString()
+            campoChave.text.clear()
+            campoChave.clearFocus()
+            getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(campoChave.windowToken, 0)
+            mostrarEstadoDaChave()
+        }
 
         botaoSobrepor.setOnClickListener {
             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
@@ -141,6 +162,7 @@ class MainActivity : Activity() {
             Fase.CARREGANDO -> "Preparando a escuta…"
             Fase.AGUARDANDO -> "Aguardando você chamar"
             Fase.OUVINDO -> "Ouvindo…"
+            Fase.PENSANDO -> "Pensando…"
             Fase.FALANDO -> "Respondendo…"
         }
         ouvido.text = if (Estado.ouvido.isEmpty()) "" else "“${Estado.ouvido}”"

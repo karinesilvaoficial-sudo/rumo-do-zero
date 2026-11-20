@@ -56,6 +56,7 @@ class ReatorView @JvmOverloads constructor(contexto: Context, attrs: AttributeSe
             Fase.CARREGANDO -> 1 to 0.3f
             Fase.AGUARDANDO -> 1 to 0.5f
             Fase.OUVINDO -> 4 to 1f
+            Fase.PENSANDO -> 6 to 0.6f
             Fase.FALANDO -> 3 to 0.8f
         }
         val pulso = if (ritmo == 0) 0f else ((sin(2 * PI * t * ritmo) + 1) / 2).toFloat() * forca

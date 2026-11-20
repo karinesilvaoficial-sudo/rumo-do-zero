@@ -23,7 +23,12 @@ import java.util.Locale
 /** O que o Jarvis responde e o que faz depois de falar. */
 data class Resposta(val fala: String, val depois: Depois = Depois.VOLTAR_A_ESCUTAR)
 
-enum class Depois { VOLTAR_A_ESCUTAR, DESLIGAR }
+enum class Depois {
+    VOLTAR_A_ESCUTAR,
+    /** Continua a conversa: ouve a próxima fala sem precisar chamar de novo. */
+    OUVIR_DE_NOVO,
+    DESLIGAR,
+}
 
 /** Executa no aparelho o comando que foi entendido. */
 class Executor(private val contexto: Context) {
@@ -64,16 +69,17 @@ class Executor(private val contexto: Context) {
                 h < 18 -> "Boa tarde"
                 else -> "Boa noite"
             }
-            Resposta("$periodo. Em que posso ajudar?")
+            Resposta("$periodo. Em que posso ajudar?", Depois.OUVIR_DE_NOVO)
         }
         Comando.Agradecimento -> Resposta("Disponha.")
         Comando.Ajuda -> Resposta(
             "Posso abrir aplicativos, dizer as horas, pesquisar na internet, tocar músicas no YouTube, " +
-                "ligar a lanterna, mudar o volume e criar alarmes e temporizadores."
+                "ligar a lanterna, mudar o volume, criar alarmes e temporizadores, e conversar sobre qualquer assunto.",
+            Depois.OUVIR_DE_NOVO
         )
         Comando.Desligar -> Resposta("Até logo.", Depois.DESLIGAR)
         Comando.Cancelar -> Resposta("Certo.")
-        is Comando.Desconhecido -> Resposta("Não entendi. Diga ajuda para saber o que eu faço.")
+        is Comando.Desconhecido -> Resposta("Não entendi. Diga ajuda para saber o que eu faço.", Depois.OUVIR_DE_NOVO)
         Comando.Vazio -> Resposta("Não ouvi nada.")
     }
 
@@ -120,7 +126,7 @@ class Executor(private val contexto: Context) {
      */
     private fun abrir(intent: Intent): Resposta? {
         if (!Estado.telaVisivel && !Settings.canDrawOverlays(contexto)) {
-            Estado.mudar { aviso = "Para abrir apps com o Jarvis em segundo plano, toque em “Permitir abrir apps em segundo plano”." }
+            Estado.mudar { aviso = "Para abrir apps com o Jarvis em segundo plano, toque em “Permitir aparecer na tela e abrir apps”." }
             return Resposta("Preciso da permissão para abrir aplicativos em segundo plano. Abra o Jarvis e toque no botão de permissão.")
         }
         return try {

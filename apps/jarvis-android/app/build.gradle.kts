@@ -32,6 +32,16 @@ android {
         }
     }
 
+    packaging {
+        resources {
+            // Arquivos de licença repetidos nas bibliotecas; sem isto o empacotamento acusa duplicidade.
+            excludes += setOf(
+                "META-INF/DEPENDENCIES", "META-INF/INDEX.LIST",
+                "META-INF/LICENSE*", "META-INF/NOTICE*", "META-INF/{AL2.0,LGPL2.1}",
+            )
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -48,4 +58,5 @@ dependencies {
     implementation(project(":core"))
     implementation("net.java.dev.jna:jna:5.13.0@aar")
     implementation("com.alphacephei:vosk-android:0.3.47@aar")
+    implementation("com.anthropic:anthropic-java:3.3.0")
 }

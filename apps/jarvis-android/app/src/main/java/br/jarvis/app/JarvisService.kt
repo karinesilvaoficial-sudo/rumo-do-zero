@@ -22,6 +22,7 @@ import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
 import android.os.VibrationEffect
+import android.provider.Settings
 import android.os.Vibrator
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -61,6 +62,7 @@ class JarvisService : Service() {
     private var contadorDeFalas = 0
 
     private var reconhecedor: SpeechRecognizer? = null
+    private var cerebro: Cerebro? = null
     private var trava: PowerManager.WakeLock? = null
 
     @Volatile private var escutando = false
@@ -279,14 +281,37 @@ class JarvisService : Service() {
 
     // ---------------------------------------------------------------- conversa
 
-    /** O Jarvis foi chamado: avisa que está pronto e ouve o comando. */
+    /** O Jarvis foi chamado: aparece na tela, avisa que está pronto e ouve o comando. */
     private fun aoAtivar() {
         vibrar()
+        mostrarPainel()
         Estado.mudar { aviso = ""; ouvido = ""; resposta = "" }
         falar("Sim?") { ouvirComando() }
     }
 
-    private fun ouvirComando() {
+    /** Traz a tela do Jarvis para a frente (acende a tela e aparece sobre o bloqueio). */
+    private fun mostrarPainel() {
+        if (Estado.telaVisivel) return
+        if (!Settings.canDrawOverlays(this)) {
+            Estado.mudar { aviso = "Para o Jarvis aparecer na tela ao ser chamado, toque em “Permitir aparecer na tela e abrir apps”." }
+            return
+        }
+        try {
+            startActivity(
+                Intent(this, MainActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Não consegui mostrar o painel", e)
+        }
+    }
+
+    /**
+     * Ouve uma fala pelo reconhecedor do Android.
+     * [continuacao] indica que é a sequência de uma conversa: se a pessoa não
+     * disser nada, o Jarvis volta a aguardar em silêncio.
+     */
+    private fun ouvirComando(continuacao: Boolean = false) {
         if (encerrado) return
         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
             falar("O reconhecimento de voz do aparelho não está disponível.") { iniciarEscuta() }
@@ -308,6 +333,7 @@ class JarvisService : Service() {
                     falar("Preciso da permissão do microfone.") { iniciarEscuta() }
                 erro == SpeechRecognizer.ERROR_NETWORK || erro == SpeechRecognizer.ERROR_NETWORK_TIMEOUT ->
                     falar("Sem internet para entender o comando.") { iniciarEscuta() }
+                continuacao -> iniciarEscuta()
                 else -> falar("Não ouvi nada.") { iniciarEscuta() }
             }
         }
@@ -347,12 +373,38 @@ class JarvisService : Service() {
     }
 
     private fun responder(comando: Comando) {
+        // O que não é um comando conhecido vira conversa.
+        if (comando is Comando.Desconhecido) {
+            conversar(comando.texto)
+            return
+        }
         val r = executor.executar(comando)
         Estado.mudar { resposta = r.fala }
         falar(r.fala) {
             when (r.depois) {
                 Depois.VOLTAR_A_ESCUTAR -> iniciarEscuta()
+                Depois.OUVIR_DE_NOVO -> ouvirComando(continuacao = true)
                 Depois.DESLIGAR -> stopSelf()
+            }
+        }
+    }
+
+    /** Responde uma fala livre com a inteligência; sem chave configurada, pesquisa na internet. */
+    private fun conversar(texto: String) {
+        val chave = preferencias.chaveIa
+        if (chave.isBlank()) {
+            Estado.mudar { aviso = "Para eu responder qualquer pergunta falando, cole a chave da inteligência na tela do Jarvis. Por enquanto, pesquisei na internet." }
+            responder(Comando.Pesquisar(texto))
+            return
+        }
+        val mente = cerebro?.takeIf { it.chave == chave } ?: Cerebro(chave).also { cerebro = it }
+        Estado.mudar { fase = Fase.PENSANDO; resposta = "" }
+        thread(name = "jarvis-conversa") {
+            val dito = mente.perguntar(texto)
+            principal.post {
+                if (encerrado) return@post
+                Estado.mudar { resposta = dito }
+                falar(dito) { ouvirComando(continuacao = true) }
             }
         }
     }

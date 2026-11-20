@@ -21,6 +21,7 @@ Chame ("Jarvis" ou 3 palmas), espere ele responder "Sim?" e diga o comando.
 | "Aumentar o volume" / "Silenciar" | Muda o volume de mídia |
 | "Timer de 5 minutos" / "Alarme para 7 e meia" | Cria no app Relógio |
 | "Como está a bateria?" | Responde a porcentagem |
+| Qualquer outra pergunta ou conversa | Responde falando, pela inteligência (Claude) |
 | "Desligar" | Para de escutar |
 
 ## Como instalar
@@ -28,9 +29,18 @@ Chame ("Jarvis" ou 3 palmas), espere ele responder "Sim?" e diga o comando.
 1. Baixe o `jarvis.apk` (gerado pelo GitHub Actions, em **Actions > Jarvis Android > último resultado > jarvis-apk**).
 2. Abra o arquivo no celular e permita instalar apps dessa origem.
 3. Abra o Jarvis, toque em **Ativar o Jarvis** e aceite microfone e notificações.
-4. Toque em **Permitir abrir apps em segundo plano**. Sem isso, o Android só deixa
-   o Jarvis abrir outros apps enquanto a tela dele está aberta.
+4. Toque em **Permitir aparecer na tela e abrir apps**. Sem isso, o Android não deixa
+   o Jarvis aparecer quando é chamado nem abrir outros apps em segundo plano.
 5. Toque em **Não deixar o sistema pausar o Jarvis**, para ele continuar ouvindo com a tela apagada.
+
+## Conversar (responder qualquer pergunta)
+
+O que não é um comando conhecido vai para o Claude, da Anthropic, que responde
+em voz alta e pode buscar na internet. Para isso, crie uma chave em
+console.anthropic.com e cole no campo **Chave** da tela do Jarvis. O uso é cobrado
+na conta da chave; ela fica guardada só no aparelho. Sem chave, perguntas livres
+viram uma pesquisa na internet. Depois de responder, o Jarvis continua ouvindo a
+próxima fala, sem precisar chamar de novo, até você ficar em silêncio.
 
 ## Como funciona
 
