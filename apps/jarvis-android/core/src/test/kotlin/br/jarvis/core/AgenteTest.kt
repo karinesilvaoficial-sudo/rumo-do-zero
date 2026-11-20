@@ -211,6 +211,17 @@ class AgenteTest {
     }
 
     @Test
+    fun `sem servidor a fala e de falta de conexao e o motivo fica registrado`() {
+        val registros = ArrayList<String>()
+        servidor.stop(0)
+        val a = Agente("chave", emptyList(), { "x" }, { m, _ -> registros.add(m) }, "http://127.0.0.1:${servidor.address.port}")
+
+        assertEquals("Estou sem conexão com a internet.", a.ouvir("oi"))
+        assertTrue(registros.single().startsWith("Falha de rede: "), registros.toString())
+        assertContains(registros.single(), "ConnectException")
+    }
+
+    @Test
     fun `laco de ferramentas tem limite`() {
         repeat(20) { respostas.add(mensagem("tool_use", uso("toolu_$it", "agenda_ver", "{}"))) }
         val fala = agente().ouvir("fique em laço")

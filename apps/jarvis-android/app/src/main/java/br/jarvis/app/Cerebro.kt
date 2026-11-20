@@ -25,7 +25,11 @@ class Cerebro(contexto: Context, val chave: String, executor: Executor) {
             val agora = SimpleDateFormat("EEEE, d 'de' MMMM 'de' yyyy, HH:mm", Locale("pt", "BR")).format(Date())
             Instrucoes.montar(agora, aparelho.situacao(), memoria.listar())
         },
-        registrar = { mensagem, erro -> Log.e("Jarvis", mensagem, erro) },
+        registrar = { mensagem, erro ->
+            Log.e("Jarvis", mensagem, erro)
+            // Aparece na tela: sem isso, só daria para saber o motivo ligando o celular a um computador.
+            Estado.mudar { aviso = mensagem.take(300) }
+        },
     )
 
     /** O Jarvis perguntou "posso enviar?" e espera a resposta: a próxima fala deve vir para cá. */

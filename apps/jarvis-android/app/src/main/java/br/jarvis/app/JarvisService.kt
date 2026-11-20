@@ -340,8 +340,14 @@ class JarvisService : Service() {
                     val comando = Interpretador.interpretar(texto)
                     // Uma confirmação pendente ("posso enviar?") recebe a fala inteira, seja ela qual for.
                     val confirmando = cerebro?.aguardandoConfirmacao == true
-                    if (confirmando || Roteador.paraAInteligencia(texto, comando, preferencias.chaveIa.isNotBlank())) conversar(texto)
-                    else responder(comando)
+                    // Só o nome de um app instalado ("YouTube") abre o app, sem passar pela inteligência.
+                    val soNomeDeApp = !confirmando && comando is Comando.Desconhecido &&
+                        texto.trim().split(Regex("\\s+")).size <= 3 && executor.conheceApp(texto)
+                    when {
+                        soNomeDeApp -> responder(Comando.AbrirApp(texto))
+                        confirmando || Roteador.paraAInteligencia(texto, comando, preferencias.chaveIa.isNotBlank()) -> conversar(texto)
+                        else -> responder(comando)
+                    }
                 }
                 erro == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS ->
                     falar("Preciso da permissão do microfone.") { iniciarEscuta() }

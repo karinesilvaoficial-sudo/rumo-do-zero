@@ -39,7 +39,8 @@ class Agente(
 ) {
     private val cliente: AnthropicClient = AnthropicOkHttpClient.builder()
         .apiKey(chave)
-        .timeout(Duration.ofSeconds(60))
+        // Com raciocínio, ferramentas e busca na internet, uma resposta pode passar de um minuto.
+        .timeout(Duration.ofSeconds(120))
         .maxRetries(1)
         .apply { if (enderecoDaApi != null) baseUrl(enderecoDaApi) }
         .build()
@@ -99,12 +100,13 @@ class Agente(
     } catch (e: RateLimitException) {
         abandonar("A inteligência está no limite de uso agora. Tente de novo em instantes.")
     } catch (e: AnthropicServiceException) {
-        registrar("Erro da API (${e.statusCode()})", e)
+        registrar("Erro da API (${e.statusCode()}): ${e.message ?: ""}", e)
         abandonar("A inteligência recusou o pedido. Confira se a conta da chave tem créditos.")
     } catch (e: AnthropicIoException) {
-        abandonar("Estou sem conexão com a internet.")
+        registrar("Falha de rede: " + descrever(e), e)
+        abandonar(falaParaFalhaDeRede(e))
     } catch (e: Exception) {
-        registrar("Falha ao responder", e)
+        registrar("Falha ao responder: " + descrever(e), e)
         abandonar("Tive um problema para responder agora.")
     }
 
@@ -186,6 +188,23 @@ class Agente(
         BetaContentBlockParam.ofToolResult(
             BetaToolResultBlockParam.builder().toolUseId(id).content(texto).isError(erro).build()
         )
+
+    /** "Sem internet" só quando é isso mesmo: demora e falha de segurança têm outra causa e outro conserto. */
+    private fun falaParaFalhaDeRede(e: Throwable): String {
+        val causas = generateSequence(e) { it.cause }.take(8).toList()
+        return when {
+            causas.any { it is java.net.UnknownHostException || it is java.net.ConnectException || it is java.net.NoRouteToHostException } ->
+                "Estou sem conexão com a internet."
+            causas.any { it is javax.net.ssl.SSLException } ->
+                "A conexão segura com a inteligência falhou. Confira a data e a hora do celular e a rede em uso."
+            causas.any { it is java.net.SocketTimeoutException || it is java.io.InterruptedIOException } ->
+                "A inteligência demorou demais para responder. Tente de novo."
+            else -> "Não consegui falar com a inteligência. O motivo está na tela do Jarvis."
+        }
+    }
+
+    private fun descrever(e: Throwable): String =
+        generateSequence(e) { it.cause }.take(4).joinToString(" <- ") { it.javaClass.simpleName + ": " + (it.message ?: "") }
 
     private fun abandonar(fala: String): String {
         pendencia = null

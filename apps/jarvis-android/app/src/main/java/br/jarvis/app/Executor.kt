@@ -92,6 +92,9 @@ class Executor(private val contexto: Context) {
         }
     }
 
+    /** Existe um app instalado com esse nome? Serve para "YouTube", dito sozinho, abrir o YouTube. */
+    fun conheceApp(nome: String): Boolean = acharApp(nome) != null
+
     private fun acharApp(nome: String): App? {
         val apps = listarApps()
         val i = Texto.melhorCorrespondencia(nome, apps.map { it.nome })
