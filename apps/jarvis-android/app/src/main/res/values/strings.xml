@@ -5,7 +5,7 @@
     <string name="parar">Desativar</string>
     <string name="falar_agora">Falar um comando agora</string>
     <string name="ativar_por_voz">Acordar quando eu disser “Jarvis”</string>
-    <string name="ativar_por_palmas">Acordar com 3 palmas seguidas</string>
+    <string name="ativar_por_palmas">Acordar com 2 palmas seguidas</string>
     <string name="sensibilidade">Sensibilidade das palmas</string>
     <string name="permitir_sobrepor">Permitir aparecer na tela e abrir apps</string>
     <string name="permitir_bateria">Não deixar o sistema pausar o Jarvis</string>
@@ -20,5 +20,5 @@
     <string name="titulo_comandos">O que você pode dizer</string>
     <string name="comandos">“Jarvis, abrir YouTube”\n“Que horas são?” · “Que dia é hoje?”\n“Pesquisar receita de bolo”\n“Tocar Legião Urbana”\n“Ligar a lanterna” · “Desligar a lanterna”\n“Aumentar o volume” · “Silenciar”\n“Timer de 5 minutos”\n“Alarme para 7 e meia”\n“Como está a bateria?”\nQualquer pergunta ou conversa\n“O que tenho na agenda amanhã?”\n“Marca dentista quinta às 15h”\n“Chegou alguma mensagem?”\n“Responde a Ana que chego às 8”\n“Lembra que minha irmã se chama Ana”\n“Desligar” (para de escutar)</string>
     <string name="notificacao_canal">Jarvis escutando</string>
-    <string name="notificacao_texto">Diga “Jarvis” ou bata 3 palmas</string>
+    <string name="notificacao_texto">Diga “Jarvis” ou bata 2 palmas</string>
 </resources>

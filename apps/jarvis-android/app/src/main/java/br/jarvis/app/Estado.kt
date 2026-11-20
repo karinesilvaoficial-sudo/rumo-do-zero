@@ -49,6 +49,6 @@ class Preferencias(contexto: Context) {
 
     /** De 1 (só palmas fortes) a 10 (palmas fracas ou distantes). */
     var sensibilidade: Int
-        get() = p.getInt("sensibilidade", 5)
+        get() = p.getInt("sensibilidade", 7)
         set(v) = p.edit().putInt("sensibilidade", v.coerceIn(1, 10)).apply()
 }

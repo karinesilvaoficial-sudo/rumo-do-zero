@@ -1,7 +1,7 @@
 # Jarvis para Android
 
 Assistente de voz que fica escutando em segundo plano e acorda quando você
-diz **"Jarvis"** ou bate **3 palmas seguidas**. Depois de acordar, ele ouve um
+diz **"Jarvis"** ou bate **2 palmas seguidas**. Depois de acordar, ele ouve um
 comando, executa e responde falando.
 
 Com a chave da inteligência, ele deixa de ser só um app de comandos e vira um
@@ -19,7 +19,7 @@ uma prévia desenhada com as mesmas medidas do app, não uma captura do celular.
 
 ## O que ele entende
 
-Chame ("Jarvis" ou 3 palmas), espere ele responder "Sim?" e diga o comando.
+Chame ("Jarvis" ou 2 palmas), espere ele responder "Sim?" e diga o comando.
 
 | Você diz | O que acontece |
 | --- | --- |

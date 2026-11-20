@@ -103,19 +103,23 @@ class DetectorPalmas(
 
     companion object {
         /** Uma palma, com o eco da sala, não passa disso. */
-        const val DURACAO_MAXIMA_MS = 150L
+        const val DURACAO_MAXIMA_MS = 220L
         /** Tempo máximo entre uma palma e a seguinte. */
-        const val INTERVALO_MAXIMO_MS = 800L
+        const val INTERVALO_MAXIMO_MS = 1000L
         /** Silêncio mínimo entre dois estalos. */
         const val PAUSA_MINIMA_MS = 60L
         const val FATOR_SOBRE_RUIDO = 5.0
         const val FRACAO_FIM = 0.4
 
+        /** Quantas palmas seguidas acordam o Jarvis. Uma só dispararia com qualquer batida ou porta. */
+        const val PALMAS_PARA_ACORDAR = 2
+
         /** Converte a sensibilidade da tela (1 a 10) no volume mínimo de um estalo. */
         fun limiarParaSensibilidade(sensibilidade: Int): Double {
             val s = sensibilidade.coerceIn(1, 10)
-            // 1 -> 8000 (só palmas fortes e próximas) ... 10 -> 600 (palmas distantes)
-            return 8000.0 * Math.pow(600.0 / 8000.0, (s - 1) / 9.0)
+            // 1 -> 4000 (só palmas fortes e próximas) ... 10 -> 400 (palmas fracas ou distantes).
+            // No celular, o microfone entrega palmas bem mais baixas do que num computador.
+            return 4000.0 * Math.pow(400.0 / 4000.0, (s - 1) / 9.0)
         }
     }
 }

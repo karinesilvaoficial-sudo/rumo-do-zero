@@ -46,7 +46,7 @@ import kotlin.concurrent.thread
 /**
  * Fica em segundo plano escutando o microfone.
  *
- * Ciclo: aguarda "Jarvis" ou 3 palmas -> responde -> ouve o comando -> executa
+ * Ciclo: aguarda "Jarvis" ou 2 palmas -> responde -> ouve o comando -> executa
  * -> fala o resultado -> volta a aguardar. O microfone é usado por uma coisa
  * de cada vez: enquanto o Jarvis fala ou o reconhecedor do Android ouve o
  * comando, a escuta de fundo fica pausada.
@@ -230,7 +230,7 @@ class JarvisService : Service() {
             // O reconhecedor só conhece as palavras de GRAMATICA: o nome e algumas
             // parecidas, que servem para não confundir outras falas com "Jarvis".
             if (modeloDeVoz != null) reconhecedorDeFundo = Recognizer(modeloDeVoz, TAXA.toFloat(), GRAMATICA)
-            val detector = DetectorPalmas(TAXA, 3, limiar)
+            val detector = DetectorPalmas(TAXA, DetectorPalmas.PALMAS_PARA_ACORDAR, limiar)
             val bloco = ShortArray(TAXA / 10)
             var blocosComNome = 0
 

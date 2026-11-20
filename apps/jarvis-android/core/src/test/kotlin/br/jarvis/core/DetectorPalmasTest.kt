@@ -107,4 +107,19 @@ class DetectorPalmasTest {
         val a = audio(5000, ruido = 3000)
         assertEquals(0, ativacoes(a))
     }
+
+    @Test
+    fun `duas palmas acordam quando o detector pede duas`() {
+        val detector = DetectorPalmas(taxa, DetectorPalmas.PALMAS_PARA_ACORDAR)
+        val a = ShortArray(taxa * 3)
+        for (inicio in listOf(1000, 1450)) {
+            val de = inicio * taxa / 1000
+            for (i in de until de + 40 * taxa / 1000) a[i] = if (i % 2 == 0) 12000 else -12000
+        }
+        assertEquals(1, ativacoes(a, detector))
+        // Uma palma sozinha não acorda.
+        val uma = ShortArray(taxa * 3)
+        for (i in taxa until taxa + 40 * taxa / 1000) uma[i] = if (i % 2 == 0) 12000 else -12000
+        assertEquals(0, ativacoes(uma, DetectorPalmas(taxa, DetectorPalmas.PALMAS_PARA_ACORDAR)))
+    }
 }
