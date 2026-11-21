@@ -22,9 +22,17 @@ class Ferramenta(
      * uma mensagem recebida não consegue enviar nada sozinho.
      */
     val confirmar: ((Argumentos) -> String)? = null,
+    /**
+     * Para ferramentas que devolvem uma imagem (foto da câmera, captura da tela) para a
+     * inteligência olhar. Quando presente, é usado no lugar de [executar].
+     */
+    val comImagem: ((Argumentos) -> Saida)? = null,
     /** Executa e devolve, em texto, o resultado que a inteligência vai ler. */
     val executar: (Argumentos) -> String,
 )
+
+/** Resultado de uma ferramenta que inclui uma imagem JPEG, em base64. */
+class Saida(val texto: String, val jpegBase64: String)
 
 /** Os dados que a inteligência informou para uma ferramenta. */
 class Argumentos(private val valores: Map<String, Any?>) {

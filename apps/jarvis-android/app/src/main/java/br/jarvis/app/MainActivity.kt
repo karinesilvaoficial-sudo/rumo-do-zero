@@ -21,7 +21,7 @@ import android.widget.TextView
 
 class MainActivity : Activity() {
     private lateinit var preferencias: Preferencias
-    private lateinit var reator: ReatorView
+    private lateinit var reator: GloboView
     private lateinit var status: TextView
     private lateinit var ouvido: TextView
     private lateinit var resposta: TextView
@@ -108,6 +108,48 @@ class MainActivity : Activity() {
             atualizar()
         }
 
+        // Voz natural (ElevenLabs) e vendas (Cakto): cada chave é colada uma vez e fica só no aparelho.
+        val campoChaveVoz = findViewById<EditText>(R.id.campoChaveVoz)
+        val campoIdDaVoz = findViewById<EditText>(R.id.campoIdDaVoz)
+        val estadoVoz = findViewById<TextView>(R.id.estadoVoz)
+        fun mostrarEstadoDaVoz() {
+            estadoVoz.setText(if (preferencias.chaveVoz.isEmpty()) R.string.voz_ausente else R.string.voz_salva)
+        }
+        mostrarEstadoDaVoz()
+        campoIdDaVoz.setText(preferencias.idDaVoz)
+        findViewById<Button>(R.id.botaoSalvarVoz).setOnClickListener {
+            // Campo da chave em branco mantém a chave atual; para remover, use o botão de apagar.
+            if (campoChaveVoz.text.isNotBlank()) preferencias.chaveVoz = campoChaveVoz.text.toString()
+            preferencias.idDaVoz = campoIdDaVoz.text.toString()
+            campoChaveVoz.text.clear()
+            esconderTeclado(campoChaveVoz)
+            mostrarEstadoDaVoz()
+        }
+        findViewById<Button>(R.id.botaoApagarVoz).setOnClickListener {
+            preferencias.chaveVoz = ""
+            mostrarEstadoDaVoz()
+        }
+
+        val campoCaktoId = findViewById<EditText>(R.id.campoCaktoId)
+        val campoCaktoSegredo = findViewById<EditText>(R.id.campoCaktoSegredo)
+        val estadoCakto = findViewById<TextView>(R.id.estadoCakto)
+        fun mostrarEstadoDaCakto() {
+            estadoCakto.setText(
+                if (preferencias.caktoId.isEmpty() || preferencias.caktoSegredo.isEmpty()) R.string.cakto_ausente else R.string.cakto_salva
+            )
+        }
+        mostrarEstadoDaCakto()
+        findViewById<Button>(R.id.botaoSalvarCakto).setOnClickListener {
+            preferencias.caktoId = campoCaktoId.text.toString()
+            preferencias.caktoSegredo = campoCaktoSegredo.text.toString()
+            campoCaktoId.text.clear()
+            campoCaktoSegredo.text.clear()
+            esconderTeclado(campoCaktoSegredo)
+            mostrarEstadoDaCakto()
+        }
+
+        ativarSePedido(intent)
+
         botaoSobrepor.setOnClickListener {
             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
         }
@@ -123,6 +165,26 @@ class MainActivity : Activity() {
                 startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        ativarSePedido(intent)
+    }
+
+    /** O celular reiniciou e o Jarvis estava ativo: liga a escuta e sai da frente. */
+    private fun ativarSePedido(intent: Intent?) {
+        if (intent?.getBooleanExtra(ATIVAR, false) != true) return
+        intent.removeExtra(ATIVAR)
+        if (JarvisService.rodando) return
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return
+        JarvisService.iniciar(this)
+        moveTaskToBack(true)
+    }
+
+    private fun esconderTeclado(campo: EditText) {
+        campo.clearFocus()
+        getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(campo.windowToken, 0)
     }
 
     override fun onStart() {
@@ -162,7 +224,7 @@ class MainActivity : Activity() {
     override fun onRequestPermissionsResult(codigo: Int, permissoes: Array<out String>, resultados: IntArray) {
         super.onRequestPermissionsResult(codigo, permissoes, resultados)
         if (codigo == PEDIDO_AGENDA) {
-            if (!temAgenda()) Estado.mudar { aviso = "Sem esse acesso o Jarvis não vê a agenda nem os contatos. Se o botão não abrir mais o pedido, libere em Configurações > Apps > Jarvis > Permissões." }
+            if (!temAgenda()) Estado.mudar { aviso = "Sem esse acesso o Jarvis não vê a agenda nem os contatos, e não liga sozinho. Se o botão não abrir mais o pedido, libere em Configurações > Apps > Jarvis > Permissões." }
             atualizar()
             return
         }
@@ -281,10 +343,12 @@ class MainActivity : Activity() {
     }
 
     companion object {
+        const val ATIVAR = "ativar"
         private const val PEDIDO_PERMISSOES = 10
         private const val PEDIDO_AGENDA = 11
         private val PERMISSOES_DA_AGENDA = arrayOf(
             Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR, Manifest.permission.READ_CONTACTS,
+            Manifest.permission.CALL_PHONE,
         )
     }
 }

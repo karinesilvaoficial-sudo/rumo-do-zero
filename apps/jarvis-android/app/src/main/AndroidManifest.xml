@@ -17,6 +17,19 @@
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <!-- Ligar para um contato depois da confirmação por voz. -->
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <!-- Voltar a escutar e refazer os lembretes depois que o celular reinicia. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Lembretes na hora certa. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <!-- Captura da tela, quando a pessoa pede que o Jarvis olhe e autoriza. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <!-- Em Android 9 ou anterior, gravar a foto na galeria exige esta permissão. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
 
     <uses-feature android:name="android.hardware.microphone" android:required="true" />
 
@@ -36,6 +49,12 @@
         <intent>
             <action android:name="android.intent.action.SENDTO" />
             <data android:scheme="mailto" />
+        </intent>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+        <intent>
+            <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
         </intent>
         <package android:name="com.whatsapp" />
         <package android:name="com.whatsapp.w4b" />
@@ -61,7 +80,22 @@
         <service
             android:name=".JarvisService"
             android:exported="false"
-            android:foregroundServiceType="microphone" />
+            android:foregroundServiceType="microphone|mediaProjection" />
+
+        <!-- Sem conteúdo próprio: abre a câmera ou o pedido de captura de tela e recebe o resultado. -->
+        <activity
+            android:name=".CapturaActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <receiver android:name=".LembreteReceiver" android:exported="false" />
+
+        <receiver android:name=".BootReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Lê as notificações dos outros apps (mensagens do WhatsApp, e-mails) depois que a pessoa libera. -->
         <service

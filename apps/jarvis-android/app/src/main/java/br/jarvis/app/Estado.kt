@@ -52,6 +52,30 @@ class Preferencias(contexto: Context) {
         get() = p.getString("chaveIa", "") ?: ""
         set(v) = p.edit().putString("chaveIa", v.trim()).apply()
 
+    /** Chave da ElevenLabs, para a voz natural. Em branco, fala com a voz do próprio Android. */
+    var chaveVoz: String
+        get() = p.getString("chaveVoz", "") ?: ""
+        set(v) = p.edit().putString("chaveVoz", v.trim()).apply()
+
+    /** Qual voz da ElevenLabs usar. Em branco, a padrão. */
+    var idDaVoz: String
+        get() = p.getString("idDaVoz", "") ?: ""
+        set(v) = p.edit().putString("idDaVoz", v.trim()).apply()
+
+    /** Chaves da API da Cakto (client id e client secret), para consultar as vendas. */
+    var caktoId: String
+        get() = p.getString("caktoId", "") ?: ""
+        set(v) = p.edit().putString("caktoId", v.trim()).apply()
+
+    var caktoSegredo: String
+        get() = p.getString("caktoSegredo", "") ?: ""
+        set(v) = p.edit().putString("caktoSegredo", v.trim()).apply()
+
+    /** O Jarvis estava escutando? Serve para voltar a escutar depois que o celular reinicia. */
+    var ativo: Boolean
+        get() = p.getBoolean("ativo", false)
+        set(v) = p.edit().putBoolean("ativo", v).apply()
+
     /** De 1 (só palmas fortes) a 10 (palmas fracas ou distantes). */
     var sensibilidade: Int
         get() = p.getInt("sensibilidade", 7)

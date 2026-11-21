@@ -9,7 +9,7 @@
     <string name="sensibilidade">Sensibilidade das palmas</string>
     <string name="permitir_sobrepor">Permitir aparecer na tela e abrir apps</string>
     <string name="permitir_bateria">Não deixar o sistema pausar o Jarvis</string>
-    <string name="permitir_agenda">Dar acesso à agenda e aos contatos</string>
+    <string name="permitir_agenda">Dar acesso à agenda, aos contatos e ao telefone</string>
     <string name="permitir_mensagens">Deixar o Jarvis ler as mensagens que chegam</string>
     <string name="titulo_ia">Inteligência: conversar e resolver por você</string>
     <string name="explicacao_ia">Para conversar, o Jarvis usa o Claude, da Anthropic. Crie uma chave em console.anthropic.com e cole aqui. O uso é cobrado pela Anthropic na sua conta. Suas perguntas são enviadas para lá e, quando você pede, também os compromissos, contatos e mensagens que o Jarvis consultar. A chave fica só neste aparelho.</string>
@@ -17,8 +17,23 @@
     <string name="salvar_chave">Salvar chave</string>
     <string name="chave_ausente">Sem chave: perguntas livres viram pesquisa na internet.</string>
     <string name="chave_salva">Chave salva. Para trocar, cole outra; para remover, salve em branco.</string>
+    <string name="titulo_voz">Voz natural (ElevenLabs)</string>
+    <string name="explicacao_voz">Com uma chave da ElevenLabs, o Jarvis fala com voz natural. Crie a chave em elevenlabs.io e cole aqui. O uso é cobrado na sua conta de lá, e o texto das respostas é enviado para gerar o áudio. O campo de baixo troca a voz: cole o código de outra voz da ElevenLabs, ou deixe em branco para a voz masculina padrão.</string>
+    <string name="dica_chave_voz">Chave da ElevenLabs</string>
+    <string name="dica_id_voz">Código da voz (opcional)</string>
+    <string name="salvar_voz">Salvar voz</string>
+    <string name="apagar_voz">Voltar à voz do celular</string>
+    <string name="voz_ausente">Sem chave: o Jarvis fala com a voz do próprio celular.</string>
+    <string name="voz_salva">Voz natural ativa.</string>
+    <string name="titulo_cakto">Vendas (Cakto)</string>
+    <string name="explicacao_cakto">Para perguntar “quanto vendi hoje?”, crie uma chave de API no painel da Cakto (Integrações &gt; Cakto API), com os escopos de leitura e pedidos, e cole os dois códigos aqui. Eles ficam só neste aparelho.</string>
+    <string name="dica_cakto_id">Client ID da Cakto</string>
+    <string name="dica_cakto_segredo">Client Secret da Cakto</string>
+    <string name="salvar_cakto">Salvar chaves da Cakto</string>
+    <string name="cakto_ausente">Sem chaves: o Jarvis não consulta vendas.</string>
+    <string name="cakto_salva">Chaves da Cakto salvas. Para remover, salve em branco.</string>
     <string name="titulo_comandos">O que você pode dizer</string>
-    <string name="comandos">“Jarvis, abrir YouTube”\n“Que horas são?” · “Que dia é hoje?”\n“Pesquisar receita de bolo”\n“Tocar Legião Urbana”\n“Ligar a lanterna” · “Desligar a lanterna”\n“Aumentar o volume” · “Silenciar”\n“Timer de 5 minutos”\n“Alarme para 7 e meia”\n“Como está a bateria?”\nQualquer pergunta ou conversa\n“O que tenho na agenda amanhã?”\n“Marca dentista quinta às 15h”\n“Chegou alguma mensagem?”\n“Responde a Ana que chego às 8”\n“Lembra que minha irmã se chama Ana”\n“Desligar” (para de escutar)</string>
+    <string name="comandos">“Jarvis, abrir YouTube”\n“Que horas são?” · “Que dia é hoje?”\n“Pesquisar receita de bolo”\n“Tocar Legião Urbana”\n“Ligar a lanterna” · “Desligar a lanterna”\n“Aumentar o volume” · “Silenciar”\n“Timer de 5 minutos”\n“Alarme para 7 e meia”\n“Como está a bateria?”\nQualquer pergunta ou conversa\n“O que tenho na agenda amanhã?”\n“Marca dentista quinta às 15h”\n“Chegou alguma mensagem?”\n“Responde a Ana que chego às 8”\n“Lembra que minha irmã se chama Ana”\n“Me lembra de tomar o remédio às 20h”\n“O que é isso?” (ele abre a câmera)\n“Olha a minha tela”\n“Pausa a música” · “Toca Legião Urbana”\n“Liga para a Maria”\n“Quanto vendi hoje?”\n“Desligar” (para de escutar)</string>
     <string name="notificacao_canal">Jarvis escutando</string>
     <string name="notificacao_texto">Diga “Jarvis” ou bata 2 palmas</string>
 </resources>

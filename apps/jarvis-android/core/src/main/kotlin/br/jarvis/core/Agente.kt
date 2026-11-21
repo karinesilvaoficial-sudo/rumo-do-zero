@@ -7,6 +7,7 @@ import com.anthropic.errors.AnthropicIoException
 import com.anthropic.errors.AnthropicServiceException
 import com.anthropic.errors.RateLimitException
 import com.anthropic.errors.UnauthorizedException
+import com.anthropic.models.beta.messages.BetaBase64ImageSource
 import com.anthropic.models.beta.messages.BetaContentBlockParam
 import com.anthropic.models.beta.messages.BetaMessageParam
 import com.anthropic.models.beta.messages.BetaOutputConfig
@@ -36,6 +37,8 @@ class Agente(
     /** Só para testes: endereço de um servidor que imita a API. */
     enderecoDaApi: String? = null,
     private val relogio: () -> Long = System::currentTimeMillis,
+    /** Chamado ao fim de cada pedido atendido, com o que a pessoa disse e o que o Jarvis respondeu. */
+    private val aoConcluir: (fala: String, resposta: String) -> Unit = { _, _ -> },
 ) {
     private val cliente: AnthropicClient = AnthropicOkHttpClient.builder()
         .apiKey(chave)
@@ -129,6 +132,11 @@ class Agente(
             if (pedidos.isEmpty() || parada == BetaStopReason.MAX_TOKENS) {
                 if (texto.isEmpty()) return abandonar("Não consegui formular uma resposta.")
                 historico.add(falaDoPedido to texto)
+                try {
+                    aoConcluir(falaDoPedido, texto)
+                } catch (e: Exception) {
+                    registrar("Falha ao guardar a conversa", e)
+                }
                 while (historico.size > MAXIMO_DE_TROCAS) historico.removeAt(0)
                 mensagens.clear()
                 return texto
@@ -176,7 +184,9 @@ class Agente(
         )
 
     private fun executar(id: String, ferramenta: Ferramenta, argumentos: Argumentos): BetaContentBlockParam = try {
-        resultado(id, ferramenta.executar(argumentos).ifBlank { "Feito." }, erro = false)
+        val comImagem = ferramenta.comImagem
+        if (comImagem != null) resultadoComImagem(id, comImagem(argumentos))
+        else resultado(id, ferramenta.executar(argumentos).ifBlank { "Feito." }, erro = false)
     } catch (e: FalhaDeFerramenta) {
         resultado(id, e.message ?: "Não deu certo.", erro = true)
     } catch (e: Exception) {
@@ -205,6 +215,24 @@ class Agente(
 
     private fun descrever(e: Throwable): String =
         generateSequence(e) { it.cause }.take(4).joinToString(" <- ") { it.javaClass.simpleName + ": " + (it.message ?: "") }
+
+    private fun resultadoComImagem(id: String, saida: Saida): BetaContentBlockParam =
+        BetaContentBlockParam.ofToolResult(
+            BetaToolResultBlockParam.builder()
+                .toolUseId(id)
+                .contentOfBlocks(
+                    listOf(
+                        BetaToolResultBlockParam.Content.Block.ofText(saida.texto),
+                        BetaToolResultBlockParam.Content.Block.ofImage(
+                            BetaBase64ImageSource.builder()
+                                .data(saida.jpegBase64)
+                                .mediaType(BetaBase64ImageSource.MediaType.IMAGE_JPEG)
+                                .build()
+                        ),
+                    )
+                )
+                .build()
+        )
 
     private fun abandonar(fala: String): String {
         pendencia = null

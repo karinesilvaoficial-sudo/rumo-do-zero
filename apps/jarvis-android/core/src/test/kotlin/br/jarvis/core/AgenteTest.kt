@@ -222,6 +222,26 @@ class AgenteTest {
     }
 
     @Test
+    fun `ferramenta com imagem manda a imagem ao modelo e a conversa e guardada ao concluir`() {
+        respostas.add(mensagem("tool_use", uso("toolu_1", "ver_pela_camera", "{}")))
+        respostas.add(mensagem("end_turn", texto("É uma caneca azul.")))
+        val guardadas = ArrayList<String>()
+        val camera = Ferramenta("ver_pela_camera", "Tira uma foto.", comImagem = { Saida("Foto tirada agora.", "QUJD") }) { "" }
+        val a = Agente(
+            "chave", listOf(camera), { "x" }, enderecoDaApi = "http://127.0.0.1:${servidor.address.port}",
+            aoConcluir = { fala, resposta -> guardadas.add("$fala -> $resposta") },
+        )
+
+        assertEquals("É uma caneca azul.", a.ouvir("o que é isso?"))
+
+        assertContains(pedidos[1], "\"type\":\"image\"")
+        assertContains(pedidos[1], "\"media_type\":\"image/jpeg\"")
+        assertContains(pedidos[1], "\"data\":\"QUJD\"")
+        assertContains(pedidos[1], "Foto tirada agora.")
+        assertEquals(listOf("o que é isso? -> É uma caneca azul."), guardadas)
+    }
+
+    @Test
     fun `laco de ferramentas tem limite`() {
         repeat(20) { respostas.add(mensagem("tool_use", uso("toolu_$it", "agenda_ver", "{}"))) }
         val fala = agente().ouvir("fique em laço")

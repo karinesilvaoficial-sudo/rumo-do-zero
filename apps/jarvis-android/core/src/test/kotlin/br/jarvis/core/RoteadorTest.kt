@@ -40,4 +40,11 @@ class RoteadorTest {
         assertFalse(Roteador.esperaResposta("Abrindo YouTube."))
         assertFalse(Roteador.esperaResposta(""))
     }
+
+    @Test
+    fun `tocar musica vai para a inteligencia e tocar no youtube fica no aparelho`() {
+        assertTrue(vai("tocar Legião Urbana"))
+        assertFalse(vai("tocar Legião Urbana no YouTube"))
+        assertFalse(vai("tocar Legião Urbana", comIa = false))
+    }
 }

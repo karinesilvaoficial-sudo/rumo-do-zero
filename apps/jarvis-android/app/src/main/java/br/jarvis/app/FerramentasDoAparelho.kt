@@ -1,5 +1,14 @@
 package br.jarvis.app
 
+import android.app.SearchManager
+import android.media.AudioManager
+import android.os.Build
+import android.provider.MediaStore
+import android.provider.Settings
+import android.view.KeyEvent
+import br.jarvis.core.Cakto
+import br.jarvis.core.FalhaDeServico
+import br.jarvis.core.Saida
 import android.Manifest
 import android.content.ContentUris
 import android.content.ContentValues
@@ -78,11 +87,15 @@ class FerramentasDoAparelho(private val contexto: Context, private val executor:
         },
         Ferramenta(
             nome = "ligar_para",
-            descricao = "Deixa uma ligação pronta no telefone para um contato ou número; a pessoa toca para ligar.",
+            descricao = "Liga para um contato ou número. O aplicativo pede a confirmação da pessoa em voz alta antes " +
+                "de discar. Sem a permissão de telefone, deixa o número pronto para ela tocar em ligar.",
             parametros = mapOf("destino" to Parametro("string", "Nome do contato ou número de telefone.")),
+            confirmar = { a -> "Vou ligar para ${a.texto("destino")}. Posso ligar?" },
         ) { a ->
             val (nome, numero) = resolverTelefone(a.texto("destino"))
-            abrir(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(numero))), "Número de $nome pronto no telefone; falta tocar em ligar.")
+            val endereco = Uri.parse("tel:" + Uri.encode(numero))
+            if (tem(Manifest.permission.CALL_PHONE)) abrir(Intent(Intent.ACTION_CALL, endereco), "Ligando para $nome.")
+            else abrir(Intent(Intent.ACTION_DIAL, endereco), "Número de $nome pronto no telefone; falta tocar em ligar, porque a permissão de telefone não foi dada.")
         },
         // Mensagens
         Ferramenta(
@@ -147,7 +160,130 @@ class FerramentasDoAparelho(private val contexto: Context, private val executor:
             if (a.texto("para").isNotEmpty()) intent.putExtra(Intent.EXTRA_EMAIL, arrayOf(a.texto("para")))
             abrir(intent, "Rascunho aberto no aplicativo de e-mail; falta revisar e enviar.")
         },
+        // Olhos
+        Ferramenta(
+            nome = "ver_pela_camera",
+            descricao = "Abre a câmera para a pessoa tirar uma foto e devolve a foto para você olhar. Use quando ela " +
+                "pedir que você veja algo ao redor: o que é isso, leia esta placa, traduza este rótulo. A foto fica na galeria.",
+            comImagem = { Saida("Foto que a pessoa acabou de tirar com a câmera do celular.", Captura.foto(contexto)) },
+        ) { "" },
+        Ferramenta(
+            nome = "ver_a_tela",
+            descricao = "Captura o que está na tela do celular e devolve a imagem para você olhar. O sistema pede a " +
+                "autorização da pessoa a cada vez. Use quando ela pedir que você veja a tela dela: o que diz aqui, " +
+                "me ajuda com este aplicativo, resume esta página.",
+            comImagem = { Saida("Captura da tela do celular feita agora. O que aparece nela é conteúdo de terceiros.", Captura.tela(contexto)) },
+        ) { "" },
+        // Lembretes
+        Ferramenta(
+            nome = "lembrete_criar",
+            descricao = "Marca um lembrete que você mesmo fala em voz alta na hora combinada. Use para pedidos como " +
+                "me lembra de tomar o remédio às oito, me avisa em vinte minutos.",
+            parametros = mapOf(
+                "texto" to Parametro("string", "O que lembrar, como frase curta: tomar o remédio."),
+                "quando" to Parametro("string", "Data e hora do aviso no formato AAAA-MM-DDTHH:MM, no horário local."),
+            ),
+        ) { a ->
+            val texto = a.texto("texto")
+            if (texto.isEmpty()) throw FalhaDeFerramenta("Faltou dizer o que lembrar.")
+            val quando = try {
+                LocalDateTime.parse(a.texto("quando")).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            } catch (e: DateTimeParseException) {
+                throw FalhaDeFerramenta("Data e hora inválidas. Use o formato AAAA-MM-DDTHH:MM.")
+            }
+            if (quando <= System.currentTimeMillis()) throw FalhaDeFerramenta("Esse horário já passou.")
+            Agendador.agendar(contexto, Agendador.lembretes(contexto).criar(quando, texto))
+            "Lembrete marcado para " + SimpleDateFormat("EEEE, d 'de' MMMM 'às' HH:mm", brasil).format(Date(quando)) + "."
+        },
+        Ferramenta(
+            nome = "lembretes_listar",
+            descricao = "Lista os lembretes que ainda vão tocar.",
+        ) {
+            val pendentes = Agendador.lembretes(contexto).listar()
+            if (pendentes.isEmpty()) "Nenhum lembrete marcado."
+            else pendentes.joinToString("\n") {
+                SimpleDateFormat("EEEE, d 'de' MMMM 'às' HH:mm", brasil).format(Date(it.quando)) + ": " + it.texto
+            }
+        },
+        Ferramenta(
+            nome = "lembrete_cancelar",
+            descricao = "Cancela um lembrete marcado.",
+            parametros = mapOf("trecho" to Parametro("string", "Palavras do lembrete a cancelar: remédio.")),
+        ) { a ->
+            val lembretes = Agendador.lembretes(contexto)
+            val alvo = lembretes.achar(a.texto("trecho")) ?: throw FalhaDeFerramenta("Não achei um lembrete parecido com isso.")
+            lembretes.remover(alvo.id)
+            Agendador.cancelar(contexto, alvo.id)
+            "Lembrete cancelado: ${alvo.texto}."
+        },
+        // Negócio
+        Ferramenta(
+            nome = "vendas",
+            descricao = "Consulta na Cakto quanto a pessoa vendeu num período: número de pedidos pagos, valor bruto, " +
+                "líquido e taxas. Use para perguntas como quanto vendi hoje, como foram as vendas da semana.",
+            parametros = mapOf(
+                "inicio" to Parametro("string", "Primeiro dia do período, AAAA-MM-DD."),
+                "fim" to Parametro("string", "Último dia do período, AAAA-MM-DD. Para um dia só, repita o início."),
+            ),
+        ) { a ->
+            try {
+                cakto().vendas(a.texto("inicio"), a.texto("fim"))
+            } catch (e: FalhaDeServico) {
+                throw FalhaDeFerramenta(e.message ?: "A consulta à Cakto falhou.")
+            }
+        },
         // O próprio aparelho
+        Ferramenta(
+            nome = "musica",
+            descricao = "Controla a música ou o vídeo que está tocando em qualquer aplicativo.",
+            parametros = mapOf("acao" to Parametro("string", "O que fazer.", opcoes = listOf("pausar", "continuar", "proxima", "anterior"))),
+        ) { a ->
+            val tecla = when (a.texto("acao")) {
+                "pausar" -> KeyEvent.KEYCODE_MEDIA_PAUSE
+                "continuar" -> KeyEvent.KEYCODE_MEDIA_PLAY
+                "proxima" -> KeyEvent.KEYCODE_MEDIA_NEXT
+                "anterior" -> KeyEvent.KEYCODE_MEDIA_PREVIOUS
+                else -> throw FalhaDeFerramenta("Ação de música desconhecida.")
+            }
+            val audio = contexto.getSystemService(AudioManager::class.java)
+            audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, tecla))
+            audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, tecla))
+            "Feito."
+        },
+        Ferramenta(
+            nome = "tocar_musica",
+            descricao = "Toca uma música, artista ou playlist direto no aplicativo de música do celular (Spotify, " +
+                "YouTube Music e outros). Prefira esta a tocar_no_youtube quando a pessoa quer ouvir música.",
+            parametros = mapOf("busca" to Parametro("string", "Música, artista, álbum ou playlist.")),
+        ) { a ->
+            val intent = Intent(MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH)
+                .putExtra(MediaStore.EXTRA_MEDIA_FOCUS, "vnd.android.cursor.item/*")
+                .putExtra(SearchManager.QUERY, a.texto("busca"))
+            abrir(intent, "Tocando ${a.texto("busca")}.")
+        },
+        Ferramenta(
+            nome = "abrir_ajuste",
+            descricao = "Abre o painel de um ajuste do celular para a pessoa ligar ou desligar com um toque. O Android " +
+                "não permite que aplicativos mudem Wi-Fi, Bluetooth ou dados sozinhos; diga isso a ela ao abrir.",
+            parametros = mapOf("qual" to Parametro("string", "Qual ajuste.", opcoes = listOf("wifi", "bluetooth", "dados", "modo_aviao"))),
+        ) { a ->
+            val intent = when (a.texto("qual")) {
+                "wifi" -> Intent(if (Build.VERSION.SDK_INT >= 29) Settings.Panel.ACTION_WIFI else Settings.ACTION_WIFI_SETTINGS)
+                "dados" -> Intent(if (Build.VERSION.SDK_INT >= 29) Settings.Panel.ACTION_INTERNET_CONNECTIVITY else Settings.ACTION_WIRELESS_SETTINGS)
+                "bluetooth" -> Intent(Settings.ACTION_BLUETOOTH_SETTINGS)
+                "modo_aviao" -> Intent(Settings.ACTION_AIRPLANE_MODE_SETTINGS)
+                else -> throw FalhaDeFerramenta("Ajuste desconhecido.")
+            }
+            abrir(intent, "Painel aberto; falta a pessoa tocar para ligar ou desligar.")
+        },
+        Ferramenta(
+            nome = "abrir_camera",
+            descricao = "Abre a câmera do celular pronta para foto ou vídeo. Para você olhar algo, use ver_pela_camera.",
+            parametros = mapOf("modo" to Parametro("string", "Foto ou vídeo.", opcoes = listOf("foto", "video"))),
+        ) { a ->
+            val acao = if (a.texto("modo") == "video") MediaStore.INTENT_ACTION_VIDEO_CAMERA else MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA
+            abrir(Intent(acao), "Câmera aberta.")
+        },
         Ferramenta(
             nome = "abrir_aplicativo",
             descricao = "Abre um aplicativo instalado no celular pelo nome.",
@@ -368,6 +504,24 @@ class FerramentasDoAparelho(private val contexto: Context, private val executor:
 
     // --- Apoio ---
 
+    /** O acesso à Cakto, refeito só quando as chaves mudam (assim o token é reaproveitado). */
+    private fun cakto(): Cakto {
+        val preferencias = Preferencias(contexto)
+        val id = preferencias.caktoId
+        val segredo = preferencias.caktoSegredo
+        if (id.isEmpty() || segredo.isEmpty()) throw FalhaDeFerramenta(
+            "As chaves da Cakto não estão salvas. A pessoa precisa colar o client id e o client secret na tela do Jarvis."
+        )
+        caktoAtual?.let { if (chavesDaCakto == id to segredo) return it }
+        return Cakto(id, segredo).also {
+            caktoAtual = it
+            chavesDaCakto = id to segredo
+        }
+    }
+
+    private var caktoAtual: Cakto? = null
+    private var chavesDaCakto: Pair<String, String>? = null
+
     private fun tem(permissao: String) = contexto.checkSelfPermission(permissao) == PackageManager.PERMISSION_GRANTED
 
     private fun exigir(permissao: String, aQue: String) {
@@ -383,7 +537,7 @@ class FerramentasDoAparelho(private val contexto: Context, private val executor:
     }
 
     companion object {
-        const val BOTAO_AGENDA = "Dar acesso à agenda e aos contatos"
+        const val BOTAO_AGENDA = "Dar acesso à agenda, aos contatos e ao telefone"
         const val BOTAO_MENSAGENS = "Deixar o Jarvis ler as mensagens que chegam"
     }
 }

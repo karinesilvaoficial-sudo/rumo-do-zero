@@ -20,10 +20,10 @@
             android:textColor="@color/ciano"
             android:textSize="14sp" />
 
-        <br.jarvis.app.ReatorView
+        <br.jarvis.app.GloboView
             android:id="@+id/reator"
-            android:layout_width="220dp"
-            android:layout_height="220dp"
+            android:layout_width="260dp"
+            android:layout_height="260dp"
             android:layout_marginTop="8dp" />
 
         <TextView
@@ -174,6 +174,139 @@
 
             <TextView
                 android:id="@+id/estadoChave"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textColor="@color/texto_fraco"
+                android:textSize="13sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="22dp"
+                android:text="@string/titulo_voz"
+                android:textColor="@color/ciano"
+                android:textSize="15sp" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:lineSpacingExtra="3dp"
+                android:text="@string/explicacao_voz"
+                android:textColor="@color/texto_fraco"
+                android:textSize="13sp" />
+
+            <EditText
+                android:id="@+id/campoChaveVoz"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:hint="@string/dica_chave_voz"
+                android:importantForAutofill="no"
+                android:inputType="textPassword"
+                android:singleLine="true"
+                android:textColor="@color/texto"
+                android:textColorHint="@color/texto_fraco"
+                android:textSize="15sp" />
+
+            <EditText
+                android:id="@+id/campoIdDaVoz"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:hint="@string/dica_id_voz"
+                android:importantForAutofill="no"
+                android:inputType="textVisiblePassword"
+                android:singleLine="true"
+                android:textColor="@color/texto"
+                android:textColorHint="@color/texto_fraco"
+                android:textSize="15sp" />
+
+            <Button
+                android:id="@+id/botaoSalvarVoz"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/botao_secundario"
+                android:text="@string/salvar_voz"
+                android:textAllCaps="false"
+                android:textColor="@color/ciano"
+                android:textSize="15sp" />
+
+            <Button
+                android:id="@+id/botaoApagarVoz"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/botao_secundario"
+                android:text="@string/apagar_voz"
+                android:textAllCaps="false"
+                android:textColor="@color/ciano"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/estadoVoz"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textColor="@color/texto_fraco"
+                android:textSize="13sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="22dp"
+                android:text="@string/titulo_cakto"
+                android:textColor="@color/ciano"
+                android:textSize="15sp" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:lineSpacingExtra="3dp"
+                android:text="@string/explicacao_cakto"
+                android:textColor="@color/texto_fraco"
+                android:textSize="13sp" />
+
+            <EditText
+                android:id="@+id/campoCaktoId"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:hint="@string/dica_cakto_id"
+                android:importantForAutofill="no"
+                android:inputType="textVisiblePassword"
+                android:singleLine="true"
+                android:textColor="@color/texto"
+                android:textColorHint="@color/texto_fraco"
+                android:textSize="15sp" />
+
+            <EditText
+                android:id="@+id/campoCaktoSegredo"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:hint="@string/dica_cakto_segredo"
+                android:importantForAutofill="no"
+                android:inputType="textPassword"
+                android:singleLine="true"
+                android:textColor="@color/texto"
+                android:textColorHint="@color/texto_fraco"
+                android:textSize="15sp" />
+
+            <Button
+                android:id="@+id/botaoSalvarCakto"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/botao_secundario"
+                android:text="@string/salvar_cakto"
+                android:textAllCaps="false"
+                android:textColor="@color/ciano"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/estadoCakto"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"

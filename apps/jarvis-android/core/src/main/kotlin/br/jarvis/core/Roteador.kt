@@ -15,6 +15,8 @@ object Roteador {
             is Comando.Desconhecido -> true
             // Ligar para um nome exige procurar nos contatos, o que só a inteligência faz.
             is Comando.Ligar -> comando.destino.none { it.isDigit() }
+            // "Tocar X" sem falar em YouTube: a inteligência toca direto no aplicativo de música.
+            is Comando.TocarNoYoutube -> !Texto.normalizar(fala).contains("youtube")
             Comando.Horas, Comando.Data, Comando.Bateria, Comando.Ajuda, Comando.Saudacao, Comando.Agradecimento ->
                 Texto.normalizar(fala).split(" ").count { it.isNotEmpty() } > FRASE_CURTA
             else -> false

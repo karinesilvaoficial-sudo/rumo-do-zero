@@ -12,7 +12,7 @@ Este app é independente do restante do repositório.
 
 ![Estados do painel](docs/previa-painel.png)
 
-O painel é animado e cada movimento mostra algo: os anéis giram mais rápido quando
+O painel é um globo que gira, e cada movimento mostra algo: ele gira mais rápido quando
 o Jarvis está pensando, as barras em volta do núcleo acompanham o som do microfone
 enquanto ele ouve, e uma onda se abre do centro quando ele é chamado. (A imagem é
 uma prévia desenhada com as mesmas medidas do app, não uma captura do celular.)
@@ -42,7 +42,17 @@ Chame ("Jarvis" ou 2 palmas), espere ele responder ("Sim, mestre?") e diga o com
 | "Liga para a Maria" | Acha o contato e deixa o número pronto no telefone |
 | "Lembra que minha irmã se chama Ana" | Guarda para as próximas conversas |
 
+| "Me lembra de tomar o remédio às 20h" | Marca o lembrete e fala na hora |
+| "O que é isso?" | Abre a câmera, você tira a foto e ele descreve |
+| "Olha a minha tela" | Pede a autorização do Android, captura a tela e responde sobre ela |
+| "Pausa a música" / "Toca Legião Urbana" | Controla o que está tocando ou toca no app de música |
+| "Liga o Wi-Fi" | Abre o painel do Wi-Fi para você tocar (o Android não deixa apps mudarem sozinhos) |
+| "Quanto vendi hoje?" | Consulta as vendas na Cakto |
+
 As linhas a partir de "O que tenho na agenda" precisam da chave da inteligência.
+
+Sem ser chamado, ele também avisa quando a bateria chega a 20% e a 10% e quando termina
+de carregar, e volta a escutar sozinho depois que o celular reinicia.
 | "Desligar" | Para de escutar |
 
 ## Como instalar
@@ -86,9 +96,24 @@ O que saber antes de usar:
 - **Privacidade**: quando você pede, os compromissos, contatos e mensagens
   consultados são enviados à Anthropic para a inteligência responder. Mensagens
   de outras pessoas entram nisso. Sem pedir, nada disso sai do aparelho.
+- **Ligações**: ligar passa pela mesma confirmação em voz alta ("Posso ligar?").
+- **Câmera e tela**: ele só olha quando você pede. A foto é você quem tira; a captura de tela
+  mostra o aviso do Android a cada vez. A imagem é enviada à Anthropic para a resposta.
+- **Conversas anteriores**: as últimas 400 trocas ficam num arquivo no aparelho, para ele
+  poder consultar o que foi dito em outros dias.
 - **Memória**: o que você manda lembrar fica em um arquivo no aparelho e é apagado
   se você desinstalar o app ou disser "esquece que…".
 - O número de WhatsApp sem código de país é tratado como brasileiro (+55).
+
+## Chaves opcionais
+
+- **Voz natural (ElevenLabs)**: cole a chave na tela do Jarvis e ele passa a falar com voz
+  natural. Sem chave, ou se o áudio falhar, usa a voz do próprio celular. Frases curtas que se
+  repetem ficam guardadas no aparelho para não serem geradas de novo.
+- **Vendas (Cakto)**: crie uma chave de API no painel da Cakto, com os escopos de leitura e
+  pedidos, e cole o client id e o client secret.
+
+As chaves ficam só no aparelho. Quem tiver o celular desbloqueado nas mãos consegue usá-las.
 
 ## Como funciona
 

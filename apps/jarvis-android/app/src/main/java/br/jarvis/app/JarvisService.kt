@@ -1,5 +1,22 @@
 package br.jarvis.app
 
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
+import android.graphics.Bitmap
+import android.graphics.PixelFormat
+import android.hardware.display.DisplayManager
+import android.hardware.display.VirtualDisplay
+import android.media.AudioAttributes
+import android.media.ImageReader
+import android.media.MediaPlayer
+import android.media.projection.MediaProjection
+import android.media.projection.MediaProjectionManager
+import android.os.BatteryManager
+import android.util.DisplayMetrics
+import android.view.WindowManager
+import br.jarvis.core.VigiaDaBateria
+import br.jarvis.core.VozNatural
+import java.io.File
 import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
@@ -67,6 +84,19 @@ class JarvisService : Service() {
     private var esperandoNomeDeApp = false
     private var avisouDaPermissao = false
     private var trava: PowerManager.WakeLock? = null
+    private var notificacaoFixa: Notification? = null
+    private var tocador: MediaPlayer? = null
+    private val vigiaDaBateria = VigiaDaBateria()
+    private val aoMudarBateria = object : BroadcastReceiver() {
+        override fun onReceive(contexto: Context, intent: Intent) {
+            val nivel = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+            val escala = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
+            if (nivel < 0 || escala <= 0) return
+            val estado = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+            val carregando = estado == BatteryManager.BATTERY_STATUS_CHARGING || estado == BatteryManager.BATTERY_STATUS_FULL
+            vigiaDaBateria.avaliar(nivel * 100 / escala, carregando)?.let { anunciar(it) }
+        }
+    }
 
     @Volatile private var escutando = false
     /** Muda a cada início ou parada da escuta, para ignorar avisos de uma escuta antiga. */
@@ -87,6 +117,9 @@ class JarvisService : Service() {
             return
         }
         rodando = true
+        instancia = this
+        preferencias.ativo = true
+        registerReceiver(aoMudarBateria, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         Estado.mudar { fase = Fase.CARREGANDO; ouvido = ""; resposta = ""; aviso = "" }
 
         trava = getSystemService(PowerManager::class.java)
@@ -125,7 +158,11 @@ class JarvisService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACAO_PARAR -> stopSelf()
+            ACAO_PARAR -> {
+                preferencias.ativo = false
+                stopSelf()
+            }
+            ACAO_ANUNCIAR -> intent.getStringExtra(EXTRA_TEXTO)?.let { anunciar(it) }
             ACAO_ATIVAR -> if (Estado.fase == Fase.AGUARDANDO) {
                 pararEscuta()
                 aoAtivar()
@@ -143,6 +180,16 @@ class JarvisService : Service() {
     override fun onDestroy() {
         encerrado = true
         rodando = false
+        if (instancia === this) {
+            instancia = null
+            try {
+                unregisterReceiver(aoMudarBateria)
+            } catch (e: IllegalArgumentException) {
+                // O serviço parou antes de registrar.
+            }
+        }
+        tocador?.release()
+        tocador = null
         principal.removeCallbacksAndMessages(null)
         pararEscuta()
         descartarReconhecedor()
@@ -178,6 +225,7 @@ class JarvisService : Service() {
                 ).build()
             )
             .build()
+        notificacaoFixa = notificacao
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(ID_NOTIFICACAO, notificacao, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
@@ -429,7 +477,10 @@ class JarvisService : Service() {
                 Depois.VOLTAR_A_ESCUTAR -> iniciarEscuta()
                 Depois.OUVIR_DE_NOVO ->
                     if (Roteador.esperaResposta(r.fala)) ouvirComando(continuacao = true) else iniciarEscuta()
-                Depois.DESLIGAR -> stopSelf()
+                Depois.DESLIGAR -> {
+                    preferencias.ativo = false
+                    stopSelf()
+                }
             }
         }
     }
@@ -460,18 +511,159 @@ class JarvisService : Service() {
 
     /** Fala o texto e chama [depois] quando terminar (ou na hora, se não houver voz disponível). */
     private fun falar(texto: String, depois: () -> Unit) {
-        val motor = voz
         if (encerrado) return
-        if (texto.isBlank() || motor == null || !vozPronta) {
+        if (texto.isBlank()) {
             principal.post { if (!encerrado) depois() }
             return
         }
         Estado.mudar { fase = Fase.FALANDO }
+        val chave = preferencias.chaveVoz
+        if (chave.isBlank()) falarComOAparelho(texto, depois) else falarComVozNatural(chave, texto, depois)
+    }
+
+    /** Voz da ElevenLabs. Se o áudio não vier (sem internet, chave recusada), fala com a voz do aparelho. */
+    private fun falarComVozNatural(chave: String, texto: String, depois: () -> Unit) {
+        val idDaVoz = preferencias.idDaVoz
+        thread(name = "jarvis-voz") {
+            // Frases curtas se repetem ("Sim, mestre?"): guarda o áudio para não pedir, nem pagar, de novo.
+            val guardado = File(cacheDir, "voz-" + (idDaVoz + "|" + texto).hashCode() + ".mp3")
+            val arquivo = if (texto.length <= 80) guardado else File(cacheDir, "voz-atual.mp3")
+            val pronto = try {
+                if (!(texto.length <= 80 && arquivo.length() > 0)) arquivo.writeBytes(VozNatural(chave, idDaVoz).sintetizar(texto))
+                true
+            } catch (e: Exception) {
+                Log.e(TAG, "Voz natural indisponível", e)
+                Estado.mudar { aviso = "Voz natural indisponível: " + (e.message ?: e.javaClass.simpleName) }
+                false
+            }
+            principal.post {
+                if (encerrado) return@post
+                if (!pronto) {
+                    falarComOAparelho(texto, depois)
+                    return@post
+                }
+                var terminou = false
+                fun terminar() {
+                    if (terminou) return
+                    terminou = true
+                    tocador?.release()
+                    tocador = null
+                    if (!encerrado) depois()
+                }
+                try {
+                    tocador?.release()
+                    tocador = MediaPlayer().apply {
+                        setAudioAttributes(
+                            AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANT)
+                                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build()
+                        )
+                        setDataSource(arquivo.absolutePath)
+                        setOnCompletionListener { terminar() }
+                        setOnErrorListener { _, _, _ -> terminar(); true }
+                        prepare()
+                        start()
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Não consegui tocar a voz natural", e)
+                    tocador?.release()
+                    tocador = null
+                    arquivo.delete()
+                    falarComOAparelho(texto, depois)
+                }
+            }
+        }
+    }
+
+    private fun falarComOAparelho(texto: String, depois: () -> Unit) {
+        val motor = voz
+        if (motor == null || !vozPronta) {
+            principal.post { if (!encerrado) depois() }
+            return
+        }
         val id = "fala-${++contadorDeFalas}"
         aoTerminarDeFalar[id] = depois
         if (motor.speak(texto, TextToSpeech.QUEUE_FLUSH, null, id) != TextToSpeech.SUCCESS) falaTerminou(id)
         // Rede de segurança caso o motor de voz nunca avise que terminou.
         principal.postDelayed({ falaTerminou(id) }, 20_000)
+    }
+
+    /** Fala um aviso por conta própria (lembrete, bateria). Se estiver numa conversa, espera ela acabar. */
+    private fun anunciar(texto: String, tentativa: Int = 0) {
+        if (encerrado) return
+        if (Estado.fase == Fase.AGUARDANDO) {
+            pararEscuta()
+            mostrarPainel()
+            Estado.mudar { ouvido = ""; resposta = texto }
+            falar(texto) { iniciarEscuta() }
+        } else if (tentativa < 8) {
+            principal.postDelayed({ anunciar(texto, tentativa + 1) }, 8_000)
+        }
+    }
+
+    /**
+     * Tira uma imagem da tela, com a autorização que a pessoa acabou de dar ([codigo] e [dados]
+     * vêm do pedido do sistema). O Android exige que isso rode num serviço em primeiro plano
+     * declarado para captura de tela; ao terminar, o serviço volta a ser só de microfone.
+     */
+    fun capturarTela(codigo: Int, dados: Intent, entregar: (Bitmap?, String?) -> Unit) {
+        principal.post {
+            var projecao: MediaProjection? = null
+            var espelho: VirtualDisplay? = null
+            var leitor: ImageReader? = null
+            fun encerrarCaptura() {
+                runCatching { espelho?.release() }
+                runCatching { leitor?.close() }
+                runCatching { projecao?.stop() }
+                val fixa = notificacaoFixa
+                if (fixa != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !encerrado) {
+                    runCatching { startForeground(ID_NOTIFICACAO, fixa, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE) }
+                }
+            }
+            try {
+                val fixa = notificacaoFixa ?: throw IllegalStateException("serviço sem notificação")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(
+                        ID_NOTIFICACAO, fixa,
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+                    )
+                }
+                val p = getSystemService(MediaProjectionManager::class.java).getMediaProjection(codigo, dados)
+                    ?: throw IllegalStateException("autorização recusada")
+                projecao = p
+                p.registerCallback(object : MediaProjection.Callback() {}, principal)
+                val medidas = DisplayMetrics()
+                @Suppress("DEPRECATION")
+                getSystemService(WindowManager::class.java).defaultDisplay.getRealMetrics(medidas)
+                val l = ImageReader.newInstance(medidas.widthPixels, medidas.heightPixels, PixelFormat.RGBA_8888, 2)
+                leitor = l
+                espelho = p.createVirtualDisplay(
+                    "jarvis-tela", medidas.widthPixels, medidas.heightPixels, medidas.densityDpi,
+                    DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, l.surface, null, principal
+                )
+                // Dá tempo de o Jarvis sair da frente e de o primeiro quadro chegar.
+                principal.postDelayed({
+                    try {
+                        val quadro = l.acquireLatestImage() ?: throw IllegalStateException("nenhuma imagem chegou")
+                        val plano = quadro.planes[0]
+                        val larguraComSobra = plano.rowStride / plano.pixelStride
+                        val cheio = Bitmap.createBitmap(larguraComSobra, quadro.height, Bitmap.Config.ARGB_8888)
+                        cheio.copyPixelsFromBuffer(plano.buffer)
+                        val imagem = Bitmap.createBitmap(cheio, 0, 0, quadro.width, quadro.height)
+                        quadro.close()
+                        encerrarCaptura()
+                        entregar(imagem, null)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Captura da tela falhou", e)
+                        encerrarCaptura()
+                        entregar(null, "Não consegui capturar a tela: ${e.message ?: e.javaClass.simpleName}.")
+                    }
+                }, 1_000)
+            } catch (e: Exception) {
+                Log.e(TAG, "Captura da tela não permitida", e)
+                encerrarCaptura()
+                entregar(null, "O sistema não permitiu capturar a tela: ${e.message ?: e.javaClass.simpleName}.")
+            }
+        }
     }
 
     private fun falaTerminou(id: String?) {
@@ -501,6 +693,19 @@ class JarvisService : Service() {
         const val ACAO_PARAR = "br.jarvis.app.PARAR"
         const val ACAO_ATIVAR = "br.jarvis.app.ATIVAR"
         const val ACAO_RECARREGAR = "br.jarvis.app.RECARREGAR"
+        const val ACAO_ANUNCIAR = "br.jarvis.app.ANUNCIAR"
+        const val EXTRA_TEXTO = "texto"
+
+        /** O serviço em execução, para a captura de tela pedir a imagem a ele. */
+        @Volatile var instancia: JarvisService? = null
+            private set
+
+        /** Pede ao Jarvis que fale um aviso (lembrete, bateria). Sem ele ativo, fica só a notificação. */
+        fun anunciar(contexto: Context, texto: String) {
+            if (rodando) contexto.startService(
+                Intent(contexto, JarvisService::class.java).setAction(ACAO_ANUNCIAR).putExtra(EXTRA_TEXTO, texto)
+            )
+        }
 
         @Volatile var rodando = false
             private set
