@@ -31,4 +31,13 @@ class RoteadorTest {
         assertFalse(vai("que horas é minha reunião de amanhã", comIa = false))
         assertFalse(vai("o que tenho na agenda hoje", comIa = false))
     }
+
+    @Test
+    fun `so continua ouvindo quando o proprio Jarvis perguntou`() {
+        assertTrue(Roteador.esperaResposta("Vou responder Ana: chego às 8. Posso enviar?"))
+        assertTrue(Roteador.esperaResposta("Qual aplicativo, mestre? "))
+        assertFalse(Roteador.esperaResposta("São 3 horas e 10."))
+        assertFalse(Roteador.esperaResposta("Abrindo YouTube."))
+        assertFalse(Roteador.esperaResposta(""))
+    }
 }

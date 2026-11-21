@@ -20,4 +20,11 @@ object Roteador {
             else -> false
         }
     }
+
+    /**
+     * Depois de falar, o Jarvis só continua ouvindo se ele mesmo fez uma pergunta
+     * ("Posso enviar?", "Qual aplicativo, mestre?"). Fora isso, volta a esperar o nome
+     * ou as palmas: assim uma conversa ao lado ou a TV não viram comando.
+     */
+    fun esperaResposta(falaDoJarvis: String): Boolean = falaDoJarvis.trimEnd().endsWith("?")
 }

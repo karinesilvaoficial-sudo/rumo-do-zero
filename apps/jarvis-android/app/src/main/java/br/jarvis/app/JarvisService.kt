@@ -427,7 +427,8 @@ class JarvisService : Service() {
         falar(r.fala) {
             when (r.depois) {
                 Depois.VOLTAR_A_ESCUTAR -> iniciarEscuta()
-                Depois.OUVIR_DE_NOVO -> ouvirComando(continuacao = true)
+                Depois.OUVIR_DE_NOVO ->
+                    if (Roteador.esperaResposta(r.fala)) ouvirComando(continuacao = true) else iniciarEscuta()
                 Depois.DESLIGAR -> stopSelf()
             }
         }
@@ -448,7 +449,11 @@ class JarvisService : Service() {
             principal.post {
                 if (encerrado) return@post
                 Estado.mudar { resposta = dito }
-                falar(dito) { ouvirComando(continuacao = true) }
+                // Só segue ouvindo se o Jarvis perguntou algo (ou espera um "sim"); senão volta a aguardar o nome.
+                falar(dito) {
+                    if (Roteador.esperaResposta(dito) || mente.aguardandoConfirmacao) ouvirComando(continuacao = true)
+                    else iniciarEscuta()
+                }
             }
         }
     }

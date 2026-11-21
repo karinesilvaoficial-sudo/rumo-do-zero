@@ -60,8 +60,8 @@ O que não é um comando simples vai para o Claude, da Anthropic, que responde
 em voz alta, pode buscar na internet e usar as ferramentas do aparelho. Para isso, crie uma chave em
 console.anthropic.com e cole no campo **Chave** da tela do Jarvis. O uso é cobrado
 na conta da chave; ela fica guardada só no aparelho. Sem chave, perguntas livres
-viram uma pesquisa na internet. Depois de responder, o Jarvis continua ouvindo a
-próxima fala, sem precisar chamar de novo, até você ficar em silêncio.
+viram uma pesquisa na internet. Depois de responder, o Jarvis volta a esperar o nome
+ou as palmas; ele só continua ouvindo quando ele mesmo fez uma pergunta (por exemplo, "Posso enviar?").
 
 ## Agente pessoal (agenda, contatos e mensagens)
 
