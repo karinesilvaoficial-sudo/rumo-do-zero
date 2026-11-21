@@ -1,5 +1,6 @@
 package br.jarvis.app
 
+import br.jarvis.core.FalhaDeServico
 import br.jarvis.core.Texto
 import android.app.KeyguardManager
 import java.util.concurrent.TimeUnit
@@ -99,6 +100,12 @@ class JarvisService : Service() {
     private lateinit var bolha: BolhaDoJarvis
     private val aoMudarEstado: () -> Unit = { if (!encerrado) bolha.atualizar() }
     private var silenciosAoVivo = 0
+    /**
+     * Chave da ElevenLabs que acabou de ser recusada, para falar ou para transcrever. Enquanto ela
+     * não for trocada, o Jarvis nem tenta: cada tentativa recusada atrasava a resposta em segundos.
+     */
+    @Volatile private var chaveSemFala = ""
+    @Volatile private var chaveSemTranscricao = ""
     /** Muda a cada fala nova, para uma fala antiga parar de tocar os trechos que faltavam. */
     @Volatile private var falaAtual = 0
     private val compromissosAvisados = HashSet<String>()
@@ -187,6 +194,9 @@ class JarvisService : Service() {
                 aoAtivar()
             }
             ACAO_RECARREGAR -> if (Estado.fase == Fase.AGUARDANDO) {
+                // A pessoa mexeu nas configurações: uma chave recusada antes merece nova tentativa.
+                chaveSemFala = ""
+                chaveSemTranscricao = ""
                 pararEscuta()
                 iniciarEscuta()
             }
@@ -323,7 +333,7 @@ class JarvisService : Service() {
             var blocosComNome = 0
             // O último segundo de áudio: quando o nome é reconhecido, o começo do comando já passou por aqui.
             val recentes = ArrayDeque<ShortArray>()
-            val capturarComando = !interrupcao && preferencias.chaveVoz.isNotBlank()
+            val capturarComando = !interrupcao && preferencias.chaveVoz.let { it.isNotBlank() && it != chaveSemTranscricao }
 
             gravador.startRecording()
             while (escutando) {
@@ -551,6 +561,10 @@ class JarvisService : Service() {
                 VozNatural(chave).transcrever(wav)
             } catch (e: Exception) {
                 Log.e(TAG, "Transcrição falhou", e)
+                if (e is FalhaDeServico && e.codigo in 400..499) {
+                    chaveSemTranscricao = chave
+                    Estado.mudar { aviso = "Comando junto do nome desligado: " + (e.message ?: "") }
+                }
                 ""
             }
             principal.post {
@@ -640,7 +654,7 @@ class JarvisService : Service() {
         }
         Estado.mudar { fase = Fase.FALANDO }
         val chave = preferencias.chaveVoz
-        if (chave.isBlank()) falarComOAparelho(texto, depois) else falarComVozNatural(chave, texto, depois)
+        if (chave.isBlank() || chave == chaveSemFala) falarComOAparelho(texto, depois) else falarComVozNatural(chave, texto, depois)
     }
 
     /**
@@ -665,6 +679,8 @@ class JarvisService : Service() {
                     fila.put(arquivo to null)
                 } catch (e: Exception) {
                     Log.e(TAG, "Voz natural indisponível", e)
+                    // Recusa por causa da chave, do plano ou da voz não se resolve tentando de novo.
+                    if (e is FalhaDeServico && e.codigo in 400..499) chaveSemFala = chave
                     Estado.mudar { aviso = "Voz natural indisponível: " + (e.message ?: e.javaClass.simpleName) }
                     fila.put(null to trechos.drop(i).joinToString(" "))
                     return@thread

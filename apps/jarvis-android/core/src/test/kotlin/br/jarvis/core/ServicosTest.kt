@@ -60,6 +60,7 @@ class ServicosTest {
         responder = { _, _ -> 401 to "{}".toByteArray() }
         val falha = assertFailsWith<FalhaDeServico> { VozNatural("errada", "  ", base).sintetizar("oi") }
         assertEquals("A chave da ElevenLabs não foi aceita.", falha.message)
+        assertEquals(401, falha.codigo)
         assertContains(recebidos.single(), "/v1/text-to-speech/${VozNatural.VOZ_PADRAO}?")
     }
 
@@ -211,5 +212,26 @@ class ServicosTest {
         assertEquals("r", VozNatural.vozBrasileira(listOf(george, lisboa, rafael))?.id)
         assertEquals("l", VozNatural.vozBrasileira(listOf(george, lisboa))?.id)
         assertNull(VozNatural.vozBrasileira(listOf(george)))
+    }
+
+    @Test
+    fun `recusa da ElevenLabs diz o motivo e o que fazer`() {
+        fun falha(codigo: Int, corpo: String) = assertFailsWith<FalhaDeServico> {
+            responder = { _, _ -> codigo to corpo.toByteArray() }
+            VozNatural("k", "v", base).sintetizar("oi")
+        }.message!!
+
+        val semPermissao = falha(401, """{"detail":{"status":"missing_permissions","message":"The API key you used is missing the permission text_to_speech to execute this operation."}}""")
+        assertContains(semPermissao, "não tem permissão para falar (text_to_speech)")
+        assertContains(semPermissao, "libere Text to Speech")
+        assertContains(falha(401, """{"detail":{"status":"invalid_api_key","message":"Invalid API key"}}"""), "não reconheceu a chave")
+        assertContains(falha(401, """{"detail":{"status":"quota_exceeded","message":"..."}}"""), "créditos")
+        assertContains(falha(402, """{"detail":{"status":"payment_required","message":"Free users cannot use library voices via the API."}}"""), "plano pago")
+        assertContains(falha(404, """{"detail":{"status":"voice_not_found","message":"..."}}"""), "não existe na sua conta")
+    }
+
+    @Test
+    fun `chave colada com espacos e quebras e limpa`() {
+        assertEquals("sk_abc123", VozNatural.limparChave("  sk_abc\n123 \t"))
     }
 }

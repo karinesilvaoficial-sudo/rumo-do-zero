@@ -16,6 +16,8 @@
     <string name="resumo_acessibilidade">Toca e digita na tela por você, a seu pedido</string>
     <string name="escolher_voz">Escolher voz da lista</string>
     <string name="voz_sem_chave">Cole a chave da ElevenLabs antes de escolher a voz.</string>
+    <string name="voz_testando">Testando a chave…</string>
+    <string name="voz_falhou">A voz natural não funcionou com essa chave.</string>
     <string name="voz_buscando">Buscando as vozes da sua conta…</string>
     <string name="voz_nenhuma">Nenhuma voz encontrada na conta.</string>
     <string name="avisar_compromissos">Avisar 15 minutos antes dos compromissos</string>
@@ -31,7 +33,7 @@
     <string name="chave_ausente">Sem chave: perguntas livres viram pesquisa na internet.</string>
     <string name="chave_salva">Chave salva. Para trocar, cole outra; para remover, salve em branco.</string>
     <string name="titulo_voz">Voz natural (ElevenLabs)</string>
-    <string name="explicacao_voz">Com uma chave da ElevenLabs, o Jarvis fala com voz natural. Crie a chave em elevenlabs.io e cole aqui. O uso é cobrado na sua conta de lá, e o texto das respostas é enviado para gerar o áudio. Toque em “Escolher voz da lista” para ver as vozes da sua conta. Para uma voz brasileira, adicione uma à sua conta na Biblioteca de Vozes do site da ElevenLabs e ela aparece na lista.</string>
+    <string name="explicacao_voz">Com uma chave da ElevenLabs, o Jarvis fala com voz natural. Crie a chave em elevenlabs.io, com as permissões Text to Speech, Speech to Text e Voices liberadas (ou sem restrições), e cole no primeiro campo. O segundo campo é o código da voz, não a chave. O uso é cobrado na sua conta de lá, e o texto das respostas é enviado para gerar o áudio. Toque em “Escolher voz da lista” para ver as vozes da sua conta. Para uma voz brasileira, adicione uma à sua conta na Biblioteca de Vozes do site da ElevenLabs e ela aparece na lista.</string>
     <string name="dica_chave_voz">Chave da ElevenLabs</string>
     <string name="dica_id_voz">Código da voz (opcional)</string>
     <string name="salvar_voz">Salvar voz</string>

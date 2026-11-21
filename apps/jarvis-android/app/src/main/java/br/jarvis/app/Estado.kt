@@ -59,7 +59,7 @@ class Preferencias(contexto: Context) {
     /** Chave da ElevenLabs, para a voz natural. Em branco, fala com a voz do próprio Android. */
     var chaveVoz: String
         get() = p.getString("chaveVoz", "") ?: ""
-        set(v) = p.edit().putString("chaveVoz", v.trim()).apply()
+        set(v) = p.edit().putString("chaveVoz", br.jarvis.core.VozNatural.limparChave(v)).apply()
 
     /** Qual voz da ElevenLabs usar. Em branco, a padrão. */
     var idDaVoz: String

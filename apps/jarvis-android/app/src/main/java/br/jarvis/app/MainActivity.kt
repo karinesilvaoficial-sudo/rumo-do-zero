@@ -158,9 +158,23 @@ class MainActivity : Activity() {
             campoChaveVoz.text.clear()
             esconderTeclado(campoChaveVoz)
             mostrarEstadoDaVoz()
+            JarvisService.enviar(this, JarvisService.ACAO_RECARREGAR)
+            // Confere a chave na hora, para a pessoa não descobrir o problema só quando o Jarvis falar.
+            if (chaveAtual.isNotEmpty()) {
+                estadoVoz.setText(R.string.voz_testando)
+                val vozDoTeste = preferencias.idDaVoz
+                thread(name = "jarvis-teste-de-voz") {
+                    val erro = runCatching { VozNatural(chaveAtual, vozDoTeste).sintetizar("Voz ativada, mestre.") }.exceptionOrNull()
+                    runOnUiThread {
+                        if (isFinishing || isDestroyed) return@runOnUiThread
+                        if (erro == null) estadoVoz.setText(R.string.voz_salva)
+                        else estadoVoz.text = erro.message ?: getString(R.string.voz_falhou)
+                    }
+                }
+            }
         }
         findViewById<Button>(R.id.botaoEscolherVoz).setOnClickListener {
-            val chave = campoChaveVoz.text.toString().trim().ifEmpty { preferencias.chaveVoz }
+            val chave = VozNatural.limparChave(campoChaveVoz.text.toString()).ifEmpty { preferencias.chaveVoz }
             if (chave.isEmpty()) {
                 estadoVoz.setText(R.string.voz_sem_chave)
                 return@setOnClickListener
@@ -185,6 +199,7 @@ class MainActivity : Activity() {
                             campoIdDaVoz.setText(vozes[qual].id)
                             campoChaveVoz.text.clear()
                             mostrarEstadoDaVoz()
+                            JarvisService.enviar(this, JarvisService.ACAO_RECARREGAR)
                         }
                         .show()
                 }
