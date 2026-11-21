@@ -100,6 +100,11 @@ class JarvisService : Service() {
     private lateinit var bolha: BolhaDoJarvis
     private val aoMudarEstado: () -> Unit = { if (!encerrado) bolha.atualizar() }
     private var silenciosAoVivo = 0
+    /** A resposta que está sendo falada agora, para poder ser interrompida. */
+    private var falaEmCurso: FalaContinua? = null
+    /** A inteligência já terminou a resposta em curso? (ou só resta acabar de falar) */
+    private var respostaPronta = false
+    private var falaSubstituta: FalaContinua? = null
     /**
      * Chave da ElevenLabs que acabou de ser recusada, para falar ou para transcrever. Enquanto ela
      * não for trocada, o Jarvis nem tenta: cada tentativa recusada atrasava a resposta em segundos.
@@ -226,6 +231,8 @@ class JarvisService : Service() {
                 // O serviço parou antes de registrar.
             }
         }
+        falaEmCurso?.cancelar()
+        falaEmCurso = null
         tocador?.release()
         tocador = null
         Estado.pararDeObservar(aoMudarEstado)
@@ -414,7 +421,19 @@ class JarvisService : Service() {
                 if (interrupcao) {
                     pararTarefa = true
                     vibrar()
-                    Estado.mudar { resposta = "Parando…" }
+                    val fala = falaEmCurso
+                    if (fala != null && respostaPronta) {
+                        // Ele só estava falando: cala na hora e ouve o que a pessoa quer dizer.
+                        falaEmCurso = null
+                        fala.cancelar()
+                        Estado.mudar { resposta = "" }
+                        ouvirComando(continuacao = true)
+                    } else {
+                        // Ainda estava trabalhando: para a fala e a tarefa; a inteligência confirma a interrupção.
+                        fala?.cancelar()
+                        falaEmCurso = FalaContinua().also { nova -> substituirFala(nova) }
+                        Estado.mudar { resposta = "Parando…" }
+                    }
                 } else {
                     val audio = falaDireta
                     if (audio != null) aoOuvirDeUmaVez(audio) else aoAtivar()
@@ -511,7 +530,11 @@ class JarvisService : Service() {
             }
             override fun onBufferReceived(buffer: ByteArray?) {}
             override fun onEndOfSpeech() {}
-            override fun onPartialResults(parciais: Bundle?) {}
+            override fun onPartialResults(parciais: Bundle?) {
+                // Mostra a fala enquanto a pessoa ainda está falando.
+                val parcial = parciais?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
+                if (!parcial.isNullOrBlank() && !resolvido) Estado.mudar { ouvido = parcial }
+            }
             override fun onEvent(tipo: Int, params: Bundle?) {}
         })
         val pedido = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
@@ -519,6 +542,7 @@ class JarvisService : Service() {
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pt-BR")
             .putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, packageName)
             .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+            .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
         r.startListening(pedido)
         // Rede de segurança: se o reconhecedor não responder, não fica preso ouvindo.
         principal.postAtTime({ resolver(null) }, FICHA_TEMPO_ESGOTADO, SystemClock.uptimeMillis() + 15_000)
@@ -635,19 +659,128 @@ class JarvisService : Service() {
         Estado.mudar { fase = Fase.PENSANDO; resposta = "" }
         pararTarefa = false
         iniciarEscutaDeInterrupcao()
+        val fala = FalaContinua()
+        falaEmCurso = fala
+        falaSubstituta = null
+        respostaPronta = false
         thread(name = "jarvis-conversa") {
-            val dito = mente.perguntar(texto)
+            // Cada frase é falada assim que a inteligência a termina, sem esperar o resto da resposta.
+            val dito = mente.perguntar(texto) { frase ->
+                fala.dizer(frase)
+                Estado.mudar { resposta = if (resposta.isEmpty() || resposta == "Parando…") frase else "$resposta $frase" }
+            }
             principal.post {
                 if (encerrado) return@post
-                pararEscuta()
+                respostaPronta = true
+                // Se a pessoa interrompeu no meio, a fala original foi calada: o desfecho sai por uma nova.
+                val atual = falaSubstituta ?: fala
+                falaSubstituta = null
+                // Perguntas de confirmação e avisos de erro vêm do aplicativo, não do fluxo: ainda precisam ser ditos.
+                if (!mente.jaFalou || atual !== fala) atual.dizer(dito)
                 Estado.mudar { resposta = dito }
-                // Só segue ouvindo se o Jarvis perguntou algo (ou espera um "sim"); senão volta a aguardar o nome.
-                falar(dito) {
+                atual.terminar {
+                    if (falaEmCurso !== atual) return@terminar
+                    falaEmCurso = null
+                    pararEscuta()
                     // Conversa de verdade: depois de responder, ouve a próxima fala sem exigir o nome.
                     // Se a pessoa não disser nada, volta a aguardar em silêncio.
                     if (Roteador.esperaResposta(dito) || mente.aguardandoConfirmacao || Estado.aoVivo || preferencias.conversaContinua) ouvirComando(continuacao = true)
                     else iniciarEscuta()
                 }
+            }
+        }
+    }
+
+    /**
+     * A fala de uma resposta que chega aos poucos. As frases entram por [dizer] conforme ficam
+     * prontas; uma linha gera o áudio de cada uma e outra toca na ordem, então a segunda frase já
+     * está sendo gerada enquanto a primeira toca. [cancelar] cala tudo na hora.
+     */
+    private inner class FalaContinua {
+        private val textos = LinkedBlockingQueue<String>()
+        private val prontos = LinkedBlockingQueue<Pair<File?, String>>()
+        @Volatile private var cancelada = false
+        private var aoTerminar: (() -> Unit)? = null
+        private val fim = "\u0000fim"
+        private var comecou = false
+
+        fun dizer(trecho: String) {
+            if (cancelada || trecho.isBlank()) return
+            synchronized(this) {
+                if (!comecou) {
+                    comecou = true
+                    iniciar()
+                }
+            }
+            textos.put(trecho)
+        }
+
+        /** Não há mais frases: [depois] roda na thread principal quando a última acabar de tocar. */
+        fun terminar(depois: () -> Unit) {
+            aoTerminar = depois
+            synchronized(this) {
+                if (!comecou) {
+                    comecou = true
+                    iniciar()
+                }
+            }
+            textos.put(fim)
+        }
+
+        fun cancelar() {
+            cancelada = true
+            textos.clear()
+            prontos.clear()
+            textos.put(fim)
+            principal.post {
+                runCatching { tocador?.stop() }
+                tocador?.release()
+                tocador = null
+                voz?.stop()
+            }
+        }
+
+        private fun iniciar() {
+            val chave = preferencias.chaveVoz.takeIf { it.isNotBlank() && it != chaveSemFala }
+            val idDaVoz = preferencias.idDaVoz
+            var natural = chave != null
+            thread(name = "jarvis-voz") {
+                var n = 0
+                while (true) {
+                    val trecho = textos.take()
+                    if (trecho == fim || cancelada) break
+                    var arquivo: File? = null
+                    if (natural && chave != null) {
+                        val curto = trecho.length <= 80
+                        val destino = File(cacheDir, if (curto) "voz-" + (idDaVoz + "|" + trecho).hashCode() + ".mp3" else "voz-fluxo-${n++ % 6}.mp3")
+                        try {
+                            if (!(curto && destino.length() > 0)) destino.writeBytes(VozNatural(chave, idDaVoz).sintetizar(trecho))
+                            arquivo = destino
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Voz natural indisponível", e)
+                            if (e is FalhaDeServico && e.codigo in 400..499) chaveSemFala = chave
+                            Estado.mudar { aviso = "Voz natural indisponível: " + (e.message ?: e.javaClass.simpleName) }
+                            // O resto desta resposta sai pela voz do aparelho.
+                            natural = false
+                        }
+                    }
+                    prontos.put(arquivo to trecho)
+                }
+                prontos.put(null to fim)
+            }
+            thread(name = "jarvis-fala") {
+                while (true) {
+                    val (arquivo, trecho) = prontos.take()
+                    if (trecho == fim || cancelada) break
+                    Estado.mudar { fase = Fase.FALANDO }
+                    if (arquivo == null || !tocarEEsperar(arquivo)) {
+                        if (cancelada) break
+                        val dito = CountDownLatch(1)
+                        principal.post { falarComOAparelho(trecho) { dito.countDown() } }
+                        dito.await(25, TimeUnit.SECONDS)
+                    }
+                }
+                principal.post { if (!encerrado && !cancelada) aoTerminar?.invoke() }
             }
         }
     }
@@ -802,6 +935,11 @@ class JarvisService : Service() {
         val fala = if (ligar) "Modo live ligado, mestre. Pode falar." else "Modo live encerrado, mestre."
         Estado.mudar { aoVivo = ligar; resposta = fala }
         falar(fala) { if (ligar) ouvirComando(continuacao = true) else iniciarEscuta() }
+    }
+
+    /** Depois de uma interrupção no meio da tarefa, o que a inteligência ainda disser sai por esta fala nova. */
+    private fun substituirFala(nova: FalaContinua) {
+        falaSubstituta = nova
     }
 
     /** Esconde a bolha por um instante, para ela não sair na captura da tela. */

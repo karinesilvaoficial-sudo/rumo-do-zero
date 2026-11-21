@@ -41,6 +41,37 @@ object Fala {
 }
 
 /**
+ * Recebe a resposta da inteligência aos pedaços, conforme ela é gerada, e entrega frases
+ * inteiras assim que cada uma fecha. É o que permite começar a falar antes de a resposta acabar.
+ */
+class Frases(private val entregar: (String) -> Unit) {
+    private val pendente = StringBuilder()
+    private val fimDeFrase = Regex("[.!?…:]+[\\s\\n]+")
+
+    fun receber(pedaco: String) {
+        pendente.append(pedaco)
+        while (true) {
+            // A frase precisa de um tamanho mínimo: "Sr. Silva" ou "1. item" não são fim de frase.
+            val achado = fimDeFrase.findAll(pendente).firstOrNull { it.range.last + 1 >= TAMANHO_MINIMO } ?: break
+            val frase = pendente.substring(0, achado.range.last + 1).trim()
+            pendente.delete(0, achado.range.last + 1)
+            if (frase.isNotEmpty()) entregar(frase)
+        }
+    }
+
+    /** A resposta acabou: entrega o que sobrou. */
+    fun fim() {
+        val resto = pendente.toString().trim()
+        pendente.setLength(0)
+        if (resto.isNotEmpty()) entregar(resto)
+    }
+
+    private companion object {
+        const val TAMANHO_MINIMO = 12
+    }
+}
+
+/**
  * Recorta o que a pessoa diz logo depois de "Jarvis", para o comando poder vir na mesma frase
  * ("Jarvis, abre o YouTube"). Recebe o áudio em blocos; termina quando a pessoa para de falar,
  * ou logo, se depois do nome veio só silêncio.

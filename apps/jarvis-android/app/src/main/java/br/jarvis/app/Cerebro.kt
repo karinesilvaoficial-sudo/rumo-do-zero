@@ -63,9 +63,12 @@ class Cerebro(
         fun diarioDe(contexto: Context) = Diario(File(contexto.applicationContext.filesDir, "diario.txt"))
     }
 
-    /** Devolve o que o Jarvis deve falar em resposta. */
-    fun perguntar(pergunta: String): String = try {
-        agente.ouvir(pergunta)
+    /** A última resposta já foi falada frase a frase, enquanto era gerada? */
+    val jaFalou: Boolean get() = agente.jaFalou
+
+    /** Devolve o que o Jarvis deve falar em resposta. Com [falar], entrega as frases conforme ficam prontas. */
+    fun perguntar(pergunta: String, falar: ((String) -> Unit)? = null): String = try {
+        agente.ouvir(pergunta, falar)
     } finally {
         // A tarefa acabou (ou parou para perguntar algo): o aviso de "Jarvis está mexendo na tela" some.
         ControleDeTela.instancia?.esconderBolha()

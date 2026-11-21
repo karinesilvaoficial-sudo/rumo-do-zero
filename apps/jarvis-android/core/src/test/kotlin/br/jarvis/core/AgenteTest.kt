@@ -26,7 +26,8 @@ class AgenteTest {
             synchronized(pedidos) { pedidos.add(troca.requestBody.readBytes().toString(Charsets.UTF_8)) }
             val corpo = (respostas.poll() ?: """{"type":"error","error":{"type":"api_error","message":"sem resposta combinada"}}""")
                 .toByteArray()
-            troca.responseHeaders.add("content-type", "application/json")
+            // Pedidos em fluxo recebem a resposta combinada no formato de eventos.
+            troca.responseHeaders.add("content-type", if (String(corpo).startsWith("event:")) "text/event-stream" else "application/json")
             troca.sendResponseHeaders(if (String(corpo).startsWith("{\"type\":\"error\"")) 500 else 200, corpo.size.toLong())
             troca.responseBody.use { it.write(corpo) }
         }
@@ -302,6 +303,49 @@ class AgenteTest {
         assertEquals("Às nove.", a.ouvir("e a padaria?"))
         assertContains(pedidos[0], "que horas abre a farmácia")
         assertContains(pedidos[0], "Às oito.")
+    }
+
+    private fun evento(tipo: String, dados: String) = "event: $tipo\ndata: $dados\n\n"
+
+    /** Uma resposta em fluxo, com o texto chegando em [pedacos]. */
+    private fun fluxo(vararg pedacos: String) = buildString {
+        append(evento("message_start", """{"type":"message_start","message":{"id":"msg_1","type":"message","role":"assistant","model":"claude-haiku-5-5","content":[],"stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":7,"output_tokens":1}}}"""))
+        append(evento("content_block_start", """{"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}"""))
+        for (p in pedacos) append(evento("content_block_delta", """{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"$p"}}"""))
+        append(evento("content_block_stop", """{"type":"content_block_stop","index":0}"""))
+        append(evento("message_delta", """{"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null},"usage":{"output_tokens":9}}"""))
+        append(evento("message_stop", """{"type":"message_stop"}"""))
+    }
+
+    @Test
+    fun `em fluxo as frases sao entregues uma a uma e a resposta inteira e devolvida`() {
+        respostas.add(fluxo("Bom dia, mes", "tre. Hoje há dois compro", "missos. O primeiro é às nove."))
+        val faladas = ArrayList<String>()
+        val a = agente()
+
+        val completa = a.ouvir("bom dia") { faladas.add(it) }
+
+        assertEquals(listOf("Bom dia, mestre.", "Hoje há dois compromissos.", "O primeiro é às nove."), faladas)
+        assertEquals("Bom dia, mestre. Hoje há dois compromissos. O primeiro é às nove.", completa)
+        assertTrue(a.jaFalou)
+        assertContains(pedidos[0], "\"stream\":true")
+    }
+
+    @Test
+    fun `fala que vem do codigo nao conta como ja falada`() {
+        respostas.add(buildString {
+            append(evento("message_start", """{"type":"message_start","message":{"id":"msg_1","type":"message","role":"assistant","model":"claude-haiku-5-5","content":[],"stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":7,"output_tokens":1}}}"""))
+            append(evento("content_block_start", """{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_9","name":"whatsapp_responder","input":{}}}"""))
+            append(evento("content_block_delta", """{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"conversa\":\"Ana\","}}"""))
+            append(evento("content_block_delta", """{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"\"texto\":\"Oi\"}"}}"""))
+            append(evento("content_block_stop", """{"type":"content_block_stop","index":0}"""))
+            append(evento("message_delta", """{"type":"message_delta","delta":{"stop_reason":"tool_use","stop_sequence":null},"usage":{"output_tokens":9}}"""))
+            append(evento("message_stop", """{"type":"message_stop"}"""))
+        })
+        val a = agente()
+        // A pergunta de confirmação é montada pelo aplicativo, não pelo modelo: quem chama precisa falar.
+        assertEquals("Vou responder Ana: Oi. Posso enviar?", a.ouvir("responde a Ana com oi") { })
+        assertFalse(a.jaFalou)
     }
 
     @Test

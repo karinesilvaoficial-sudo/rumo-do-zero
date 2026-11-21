@@ -3,6 +3,7 @@ package br.jarvis.core
 import com.anthropic.client.AnthropicClient
 import com.anthropic.client.okhttp.AnthropicOkHttpClient
 import com.anthropic.core.JsonValue
+import com.anthropic.helpers.BetaMessageAccumulator
 import com.anthropic.errors.AnthropicIoException
 import com.anthropic.errors.AnthropicServiceException
 import com.anthropic.errors.RateLimitException
@@ -90,9 +91,22 @@ class Agente(
     val aguardandoConfirmacao: Boolean
         get() = pendencia?.let { relogio() - it.desde <= VALIDADE_DA_CONFIRMACAO_MS } ?: false
 
-    /** Recebe uma fala da pessoa e devolve o que o Jarvis deve dizer. */
+    /** A última resposta devolvida por [ouvir] já foi entregue, frase a frase, a quem pediu para falar? */
+    @Volatile
+    var jaFalou = false
+        private set
+
+    private var aoFalar: ((String) -> Unit)? = null
+
+    /**
+     * Recebe uma fala da pessoa e devolve o que o Jarvis deve dizer. Com [falar], a resposta é
+     * entregue frase a frase enquanto ainda está sendo gerada; nesse caso [jaFalou] fica verdadeiro
+     * e o texto devolvido serve só para registro.
+     */
     @Synchronized
-    fun ouvir(fala: String): String = try {
+    fun ouvir(fala: String, falar: ((String) -> Unit)? = null): String = try {
+        aoFalar = falar
+        jaFalou = false
         if (!podeGastar()) throw LimiteAtingido()
         val p = pendencia.takeIf { aguardandoConfirmacao }
         if (p != null) {
@@ -131,7 +145,26 @@ class Agente(
     private fun rodar(): String {
         repeat(MAXIMO_DE_PASSOS) {
             if (interrompido()) return abandonar("Interrompido, mestre.")
-            val resposta = cliente.beta().messages().create(montarPedido())
+            val falar = aoFalar
+            var falouAlgo = false
+            val resposta = if (falar == null) cliente.beta().messages().create(montarPedido()) else {
+                // Em fluxo: cada frase vai para a voz assim que fecha, sem esperar o resto da resposta.
+                val acumulador = BetaMessageAccumulator.create()
+                val frases = Frases { frase -> falouAlgo = true; falar(frase) }
+                val fluxo = cliente.beta().messages().createStreaming(montarPedido())
+                try {
+                    fluxo.stream().forEach { evento ->
+                        acumulador.accumulate(evento)
+                        evento.contentBlockDelta().ifPresent { delta ->
+                            delta.delta().text().ifPresent { frases.receber(it.text()) }
+                        }
+                    }
+                } finally {
+                    fluxo.close()
+                }
+                frases.fim()
+                acumulador.message()
+            }
             runCatching { aoGastar(resposta.usage().inputTokens(), resposta.usage().outputTokens()) }
             val parada = resposta.stopReason().orElse(null)
             if (parada == BetaStopReason.REFUSAL) return abandonar("Com isso eu não posso ajudar.")
@@ -147,6 +180,7 @@ class Agente(
             val pedidos = resposta.content().mapNotNull { it.toolUse().orElse(null) }
             if (pedidos.isEmpty() || parada == BetaStopReason.MAX_TOKENS) {
                 if (texto.isEmpty()) return abandonar("Não consegui formular uma resposta.")
+                jaFalou = falouAlgo
                 historico.add(falaDoPedido to texto)
                 try {
                     aoConcluir(falaDoPedido, texto)

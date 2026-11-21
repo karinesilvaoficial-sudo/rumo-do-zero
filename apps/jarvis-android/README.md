@@ -130,7 +130,11 @@ O que saber antes de usar:
 - **Nome e comando juntos**: com a voz natural ativa, dá para dizer "Jarvis, abre o YouTube" de
   uma vez. O áudio dito depois do nome é transcrito pela ElevenLabs. Sem a chave, ou se a
   transcrição falhar, vale o fluxo de sempre: "Jarvis", "Sim, mestre?", comando.
-- **Fala em trechos**: a primeira frase da resposta começa a tocar enquanto o resto é gerado.
+- **Resposta em tempo real**: a resposta chega da inteligência em fluxo e cada frase é falada
+  assim que fecha, enquanto as seguintes ainda estão sendo geradas.
+- **Sua fala na tela**: o que você diz aparece enquanto você ainda está falando.
+- **Interromper**: diga "Jarvis" enquanto ele fala e ele se cala e ouve; durante uma tarefa,
+  o mesmo comando para a tarefa.
 - **"Bom dia"**: resumo do dia com agenda, mensagens e, se houver chaves da Cakto, vendas de ontem.
 - **Avisos**: 15 minutos antes de cada compromisso (ligado de fábrica) e, se você ligar, o
   nome de quem mandou mensagem. O conteúdo da mensagem só é lido quando você pede.

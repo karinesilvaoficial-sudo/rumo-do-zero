@@ -80,4 +80,16 @@ class FalaTest {
         assertEquals(0.0, g.deHoje())
         assertTrue(g.dentroDoLimite(0.5))
     }
+
+    @Test
+    fun `frases saem inteiras mesmo chegando aos pedacos`() {
+        val saidas = ArrayList<String>()
+        val f = Frases { saidas.add(it) }
+        for (p in listOf("Olá, mes", "tre! Tudo ", "certo por aqui. O Sr. Silva li", "gou")) f.receber(p)
+        assertEquals(listOf("Olá, mestre!", "Tudo certo por aqui."), saidas)
+        f.fim()
+        assertEquals("O Sr. Silva ligou", saidas.last())
+        f.fim()
+        assertEquals(3, saidas.size)
+    }
 }
