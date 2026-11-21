@@ -108,10 +108,20 @@ object Caixa {
         }.sortedByDescending { it.quando }.take(quantidade)
     }
 
-    /** A notificação mais recente da conversa do WhatsApp cujo nome mais parece com [nome] e que aceita resposta. */
-    fun conversaDoWhatsApp(nome: String): Recado? {
+    /**
+     * A notificação mais recente, que aceita resposta, da conversa cujo nome mais parece com [nome].
+     * [app] restringe a busca: "whatsapp", "instagram" ou parte do nome de outro aplicativo; em branco, qualquer um.
+     */
+    fun conversaParaResponder(app: String, nome: String): Recado? {
+        val filtro = Texto.normalizar(app).replace(" ", "")
         val candidatos = synchronized(recados) {
-            recados.filter { it.ehWhatsApp && it.resposta != null }.sortedByDescending { it.quando }
+            recados.filter { it.resposta != null && !it.ehEmail }.filter {
+                when {
+                    filtro.isEmpty() -> true
+                    filtro == "whatsapp" -> it.ehWhatsApp
+                    else -> Texto.normalizar(it.app).replace(" ", "").contains(filtro) || it.pacote.contains(filtro)
+                }
+            }.sortedByDescending { it.quando }
         }
         val nomes = candidatos.map { it.conversa }.distinct()
         val i = Texto.melhorCorrespondencia(nome, nomes)

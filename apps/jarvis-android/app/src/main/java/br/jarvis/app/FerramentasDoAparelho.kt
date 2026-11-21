@@ -110,27 +110,32 @@ class FerramentasDoAparelho(private val contexto: Context, private val executor:
             executar = ::lerMensagens,
         ),
         Ferramenta(
-            nome = "whatsapp_responder",
-            descricao = "Responde, sem abrir o WhatsApp, uma conversa que mandou mensagem há pouco (as que aparecem " +
-                "em mensagens_recentes). O aplicativo pede a confirmação da pessoa em voz alta antes de enviar.",
+            nome = "mensagem_responder",
+            descricao = "Responde, sem abrir o aplicativo, uma conversa que mandou mensagem há pouco no WhatsApp, no " +
+                "Instagram ou em outro aplicativo de mensagens (as que aparecem em mensagens_recentes). Só funciona " +
+                "enquanto a notificação da conversa está na barra. O aplicativo pede a confirmação da pessoa em voz " +
+                "alta antes de enviar.",
             parametros = mapOf(
+                "aplicativo" to Parametro("string", "Onde responder: whatsapp, instagram ou o nome do aplicativo, como aparece na mensagem recebida."),
                 "conversa" to Parametro("string", "Nome da pessoa ou do grupo, como aparece na mensagem recebida."),
                 "texto" to Parametro("string", "A mensagem a enviar, pronta, como a pessoa escreveria."),
             ),
             confirmar = { a ->
-                val alvo = Caixa.conversaDoWhatsApp(a.texto("conversa"))?.conversa ?: a.texto("conversa")
-                "Vou responder $alvo no WhatsApp: ${a.texto("texto")}. Posso enviar?"
+                val achada = Caixa.conversaParaResponder(a.texto("aplicativo"), a.texto("conversa"))
+                val alvo = achada?.conversa ?: a.texto("conversa")
+                val onde = achada?.app ?: a.texto("aplicativo")
+                "Vou responder $alvo no $onde: ${a.texto("texto")}. Posso enviar?"
             },
         ) { a ->
             exigirMensagens()
             val texto = a.texto("texto")
             if (texto.isEmpty()) throw FalhaDeFerramenta("Faltou o texto da mensagem.")
-            val recado = Caixa.conversaDoWhatsApp(a.texto("conversa")) ?: throw FalhaDeFerramenta(
-                "Não há mensagem recente de ${a.texto("conversa")} para responder. " +
-                    "Use whatsapp_abrir_conversa para deixar o texto pronto na conversa."
+            val recado = Caixa.conversaParaResponder(a.texto("aplicativo"), a.texto("conversa")) ?: throw FalhaDeFerramenta(
+                "Não há mensagem recente de ${a.texto("conversa")} em ${a.texto("aplicativo")} que aceite resposta. " +
+                    "No WhatsApp, use whatsapp_abrir_conversa para deixar o texto pronto; nos outros, ofereça abrir o aplicativo."
             )
             Caixa.responder(contexto, recado, texto)
-            "Mensagem enviada para ${recado.conversa}."
+            "Mensagem enviada para ${recado.conversa} no ${recado.app}."
         },
         Ferramenta(
             nome = "whatsapp_abrir_conversa",

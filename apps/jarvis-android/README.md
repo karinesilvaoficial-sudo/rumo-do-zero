@@ -37,6 +37,7 @@ Chame ("Jarvis" ou 2 palmas), espere ele responder ("Sim, mestre?") e diga o com
 | "Marca dentista quinta às 15h" | Cria o compromisso, com aviso 30 minutos antes |
 | "Chegou alguma mensagem?" | Resume o que chegou no WhatsApp, e-mail e outros apps |
 | "Responde a Ana que chego às 8" | Repete o texto, pergunta "posso enviar?" e só envia depois do seu "sim" |
+| "Responde o João no Instagram que já vi" | O mesmo, para mensagens do Instagram e de outros apps que aceitam resposta pela notificação |
 | "Manda um WhatsApp pro João dizendo…" | Abre a conversa com o texto pronto; você toca em enviar |
 | "Escreve um e-mail para…" | Abre o rascunho no app de e-mail; você revisa e envia |
 | "Liga para a Maria" | Acha o contato e deixa o número pronto no telefone |
