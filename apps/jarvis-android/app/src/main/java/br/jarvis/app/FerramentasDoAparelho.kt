@@ -52,6 +52,9 @@ class FerramentasDoAparelho(private val contexto: Context, private val executor:
             linhas.add("A pessoa ainda não deu acesso às mensagens que chegam (botão “$BOTAO_MENSAGENS” na tela do Jarvis).")
         if (!ControleDeTela.ativado(contexto))
             linhas.add("A pessoa ainda não ativou o controle da tela (botão “$BOTAO_TELA” na tela do Jarvis); sem ele você abre aplicativos, mas não toca dentro deles.")
+        if (Estado.aoVivo) linhas.add(
+            "Modo ao vivo ligado: a conversa é contínua. Responda curto e, quando a fala se referir ao que ela está vendo, olhe a tela antes de responder (tela_ler, ou ver_a_tela se precisar da imagem)."
+        )
         return linhas
     }
 
@@ -135,23 +138,33 @@ class FerramentasDoAparelho(private val contexto: Context, private val executor:
             if (texto.isEmpty()) throw FalhaDeFerramenta("Faltou o texto da mensagem.")
             val recado = Caixa.conversaParaResponder(a.texto("aplicativo"), a.texto("conversa")) ?: throw FalhaDeFerramenta(
                 "Não há mensagem recente de ${a.texto("conversa")} em ${a.texto("aplicativo")} que aceite resposta. " +
-                    "No WhatsApp, use whatsapp_abrir_conversa para deixar o texto pronto; nos outros, ofereça abrir o aplicativo."
+                    "No WhatsApp, use whatsapp_enviar para mandar uma mensagem nova; nos outros, abra o aplicativo e use as ferramentas de tela."
             )
             Caixa.responder(contexto, recado, texto)
             "Mensagem enviada para ${recado.conversa} no ${recado.app}."
         },
         Ferramenta(
-            nome = "whatsapp_abrir_conversa",
-            descricao = "Abre o WhatsApp na conversa de um contato com o texto já escrito. Não envia: a pessoa precisa " +
-                "tocar em enviar. Use para começar uma conversa ou quando não há mensagem recente para responder.",
+            nome = "whatsapp_enviar",
+            descricao = "Manda uma mensagem de WhatsApp para um contato, mesmo que ele não tenha escrito antes: abre a " +
+                "conversa com o texto e toca em enviar. O aplicativo pede a confirmação da pessoa em voz alta antes. " +
+                "Sem o controle da tela ativado, deixa o texto pronto e a pessoa toca em enviar.",
             parametros = mapOf(
                 "destino" to Parametro("string", "Nome do contato ou número com DDD."),
                 "texto" to Parametro("string", "A mensagem, pronta, como a pessoa escreveria."),
             ),
+            confirmar = { a -> "Vou mandar para ${a.texto("destino")} no WhatsApp: ${a.texto("texto")}. Posso enviar?" },
         ) { a ->
+            if (a.texto("texto").isEmpty()) throw FalhaDeFerramenta("Faltou o texto da mensagem.")
             val (nome, numero) = resolverTelefone(a.texto("destino"))
             val endereco = Uri.parse("https://wa.me/${paraWhatsApp(numero)}?text=" + Uri.encode(a.texto("texto")))
-            abrir(Intent(Intent.ACTION_VIEW, endereco), "Abri o WhatsApp na conversa de $nome com o texto pronto; falta tocar em enviar.")
+            abrir(Intent(Intent.ACTION_VIEW, endereco), "")
+            val controle = ControleDeTela.instancia
+            when {
+                controle == null ->
+                    "Abri o WhatsApp na conversa de $nome com o texto pronto; falta a pessoa tocar em enviar, porque o controle da tela não está ativado."
+                controle.enviarNoWhatsApp() -> "Mensagem enviada para $nome no WhatsApp."
+                else -> "Abri a conversa de $nome com o texto pronto, mas não achei o botão de enviar. Leia a tela com tela_ler para concluir, ou peça à pessoa para tocar em enviar."
+            }
         },
         Ferramenta(
             nome = "email_escrever",

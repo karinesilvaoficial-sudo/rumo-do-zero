@@ -1,5 +1,7 @@
 package br.jarvis.app
 
+import br.jarvis.core.Texto
+import android.app.KeyguardManager
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.CountDownLatch
@@ -94,6 +96,9 @@ class JarvisService : Service() {
     private var trava: PowerManager.WakeLock? = null
     private var notificacaoFixa: Notification? = null
     private var tocador: MediaPlayer? = null
+    private lateinit var bolha: BolhaDoJarvis
+    private val aoMudarEstado: () -> Unit = { if (!encerrado) bolha.atualizar() }
+    private var silenciosAoVivo = 0
     /** Muda a cada fala nova, para uma fala antiga parar de tocar os trechos que faltavam. */
     @Volatile private var falaAtual = 0
     private val compromissosAvisados = HashSet<String>()
@@ -121,6 +126,8 @@ class JarvisService : Service() {
         super.onCreate()
         preferencias = Preferencias(this)
         executor = Executor(this)
+        bolha = BolhaDoJarvis(this)
+        Estado.observar(aoMudarEstado)
 
         if (!entrarEmPrimeiroPlano()) {
             encerrado = true
@@ -202,6 +209,10 @@ class JarvisService : Service() {
         }
         tocador?.release()
         tocador = null
+        Estado.pararDeObservar(aoMudarEstado)
+        bolha.esconder()
+        Estado.aoVivo = false
+        Estado.passo = ""
         principal.removeCallbacksAndMessages(null)
         pararEscuta()
         descartarReconhecedor()
@@ -413,6 +424,9 @@ class JarvisService : Service() {
     /** Traz a tela do Jarvis para a frente (acende a tela e aparece sobre o bloqueio). */
     private fun mostrarPainel() {
         if (Estado.telaVisivel) return
+        // Desbloqueado, o Jarvis aparece como uma bolha por cima do aplicativo em uso (ver BolhaDoJarvis).
+        // A tela cheia fica para o celular bloqueado, onde a bolha não pode aparecer.
+        if (Settings.canDrawOverlays(this) && getSystemService(KeyguardManager::class.java)?.isKeyguardLocked != true) return
         if (!Settings.canDrawOverlays(this)) {
             Estado.mudar { aviso = "Para o Jarvis aparecer na tela ao ser chamado, toque em “Permitir aparecer na tela e abrir apps”." }
             return
@@ -454,7 +468,12 @@ class JarvisService : Service() {
                     falar("Preciso da permissão do microfone.") { iniciarEscuta() }
                 erro == SpeechRecognizer.ERROR_NETWORK || erro == SpeechRecognizer.ERROR_NETWORK_TIMEOUT ->
                     falar("Sem internet para entender o comando.") { iniciarEscuta() }
-                continuacao -> iniciarEscuta()
+                // No modo ao vivo, um silêncio não encerra a conversa; depois de três seguidos, ele volta a aguardar.
+                continuacao && Estado.aoVivo && ++silenciosAoVivo < 3 -> ouvirComando(continuacao = true)
+                continuacao -> {
+                    if (Estado.aoVivo) Estado.mudar { aoVivo = false; resposta = "Modo ao vivo encerrado." }
+                    iniciarEscuta()
+                }
                 else -> falar("Não ouvi nada.") { iniciarEscuta() }
             }
         }
@@ -506,10 +525,11 @@ class JarvisService : Service() {
         Estado.mudar { resposta = r.fala }
         falar(r.fala) {
             when (r.depois) {
-                Depois.VOLTAR_A_ESCUTAR -> iniciarEscuta()
+                Depois.VOLTAR_A_ESCUTAR -> if (Estado.aoVivo) ouvirComando(continuacao = true) else iniciarEscuta()
                 Depois.OUVIR_DE_NOVO ->
-                    if (Roteador.esperaResposta(r.fala)) ouvirComando(continuacao = true) else iniciarEscuta()
+                    if (Roteador.esperaResposta(r.fala) || Estado.aoVivo) ouvirComando(continuacao = true) else iniciarEscuta()
                 Depois.DESLIGAR -> {
+                    Estado.aoVivo = false
                     preferencias.ativo = false
                     stopSelf()
                 }
@@ -548,6 +568,16 @@ class JarvisService : Service() {
     /** Decide o que fazer com o que a pessoa falou: comando do aparelho, nome de app ou inteligência. */
     private fun tratarFala(texto: String) {
         Estado.mudar { ouvido = texto }
+        silenciosAoVivo = 0
+        val dito = Texto.normalizar(texto)
+        if (dito.contains("ao vivo")) {
+            val sair = listOf("sair", "sai", "desliga", "desligar", "parar", "para", "encerrar", "encerra", "fechar", "fecha").any { it in dito.split(" ") }
+            Estado.mudar { aoVivo = !sair }
+            val fala = if (sair) "Modo ao vivo encerrado, mestre." else "Modo ao vivo ligado, mestre. Pode falar."
+            Estado.mudar { resposta = fala }
+            falar(fala) { if (sair) iniciarEscuta() else ouvirComando(continuacao = true) }
+            return
+        }
         val comando = Interpretador.interpretar(texto)
         // Uma confirmação pendente ("posso enviar?") recebe a fala inteira, seja ela qual for.
         val confirmando = cerebro?.aguardandoConfirmacao == true
@@ -594,7 +624,7 @@ class JarvisService : Service() {
                 Estado.mudar { resposta = dito }
                 // Só segue ouvindo se o Jarvis perguntou algo (ou espera um "sim"); senão volta a aguardar o nome.
                 falar(dito) {
-                    if (Roteador.esperaResposta(dito) || mente.aguardandoConfirmacao) ouvirComando(continuacao = true)
+                    if (Roteador.esperaResposta(dito) || mente.aguardandoConfirmacao || Estado.aoVivo) ouvirComando(continuacao = true)
                     else iniciarEscuta()
                 }
             }
@@ -743,6 +773,11 @@ class JarvisService : Service() {
         }
     }
 
+    /** Esconde a bolha por um instante, para ela não sair na captura da tela. */
+    fun ocultarBolha(ocultar: Boolean) {
+        principal.post { bolha.ocultarParaCaptura(ocultar) }
+    }
+
     /** Fala um aviso por conta própria (lembrete, bateria). Se estiver numa conversa, espera ela acabar. */
     private fun anunciar(texto: String, tentativa: Int = 0) {
         if (encerrado) return
@@ -767,6 +802,7 @@ class JarvisService : Service() {
             var espelho: VirtualDisplay? = null
             var leitor: ImageReader? = null
             fun encerrarCaptura() {
+                bolha.ocultarParaCaptura(false)
                 runCatching { espelho?.release() }
                 runCatching { leitor?.close() }
                 runCatching { projecao?.stop() }
@@ -796,6 +832,7 @@ class JarvisService : Service() {
                     "jarvis-tela", medidas.widthPixels, medidas.heightPixels, medidas.densityDpi,
                     DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, l.surface, null, principal
                 )
+                bolha.ocultarParaCaptura(true)
                 // Dá tempo de o Jarvis sair da frente e de o primeiro quadro chegar.
                 principal.postDelayed({
                     try {

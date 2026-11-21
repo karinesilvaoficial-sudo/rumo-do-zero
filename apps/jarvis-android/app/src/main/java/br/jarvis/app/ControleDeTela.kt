@@ -6,7 +6,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Path
-import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
@@ -14,11 +13,8 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.view.Display
-import android.view.Gravity
-import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import android.widget.TextView
 import br.jarvis.core.FalhaDeFerramenta
 import br.jarvis.core.Limites
 import java.util.concurrent.CompletableFuture
@@ -33,7 +29,6 @@ import java.util.concurrent.TimeUnit
  */
 class ControleDeTela : AccessibilityService() {
     private val principal = Handler(Looper.getMainLooper())
-    private var bolha: TextView? = null
 
     /** Um elemento da última leitura da tela, com o número que a inteligência usa para apontá-lo. */
     private class Elemento(val no: AccessibilityNodeInfo, val rotulo: String, val area: Rect, val editavel: Boolean)
@@ -192,8 +187,9 @@ class ControleDeTela : AccessibilityService() {
         if (Build.VERSION.SDK_INT < 30) throw FalhaDeFerramenta("Este Android não permite capturar a tela por aqui.")
         exigirTelaPermitida()
         val pronta = CompletableFuture<Bitmap>()
-        esconderBolha()
-        Thread.sleep(150)
+        // A bolha do Jarvis some por um instante para não cobrir a imagem.
+        JarvisService.instancia?.ocultarBolha(true)
+        Thread.sleep(200)
         takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
             override fun onSuccess(captura: ScreenshotResult) {
                 val bruta = Bitmap.wrapHardwareBuffer(captura.hardwareBuffer, captura.colorSpace)
@@ -208,55 +204,52 @@ class ControleDeTela : AccessibilityService() {
         return try {
             pronta.get(8, TimeUnit.SECONDS)
         } catch (e: Exception) {
+            JarvisService.instancia?.ocultarBolha(false)
             throw FalhaDeFerramenta("Não consegui capturar a tela: ${(e.cause ?: e).message}.")
-        }
+        }.also { JarvisService.instancia?.ocultarBolha(false) }
     }
 
     // ---------------------------------------------------------------- bolha
 
-    /** Uma faixa pequena no topo da tela dizendo o que o Jarvis está fazendo, sem cobrir o aplicativo. */
-    fun mostrarBolha(texto: String) {
-        principal.post {
-            try {
-                val atual = bolha
-                if (atual != null) {
-                    atual.text = "Jarvis · $texto"
-                    return@post
+    /** Mostra, na bolha do Jarvis, o passo que ele está executando. */
+    fun mostrarBolha(texto: String) = Estado.mudar { passo = texto }
+
+    fun esconderBolha() = Estado.mudar { passo = "" }
+
+    /**
+     * Toca no botão de enviar do WhatsApp, depois que a conversa foi aberta com o texto pronto.
+     * Devolve `false` se o botão não apareceu a tempo.
+     */
+    fun enviarNoWhatsApp(): Boolean {
+        mostrarBolha("Enviando no WhatsApp")
+        repeat(12) {
+            Thread.sleep(500)
+            val raiz = rootInActiveWindow
+            if (raiz != null && raiz.packageName?.toString() in Caixa.PACOTES_DO_WHATSAPP) {
+                val botao = achar(raiz) { no ->
+                    val id = no.viewIdResourceName.orEmpty()
+                    val nome = (no.contentDescription?.toString() ?: no.text?.toString() ?: "").trim().lowercase()
+                    id.endsWith(":id/send") || nome == "enviar" || nome == "send"
                 }
-                val densidade = resources.displayMetrics.density
-                val vista = TextView(this).apply {
-                    text = "Jarvis · $texto"
-                    setTextColor(getColor(R.color.ciano))
-                    textSize = 13f
-                    maxLines = 1
-                    setBackgroundResource(R.drawable.bolha)
-                    val h = (14 * densidade).toInt()
-                    val v = (8 * densidade).toInt()
-                    setPadding(h, v, h, v)
+                if (botao != null) {
+                    var no: AccessibilityNodeInfo? = botao
+                    var subidas = 0
+                    while (no != null && subidas < 4) {
+                        if (no.isClickable && no.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true
+                        no = no.parent
+                        subidas++
+                    }
                 }
-                val parametros = WindowManager.LayoutParams(
-                    WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
-                    WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
-                    PixelFormat.TRANSLUCENT
-                ).apply {
-                    gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                    y = (48 * densidade).toInt()
-                }
-                getSystemService(WindowManager::class.java).addView(vista, parametros)
-                bolha = vista
-            } catch (e: Exception) {
-                // Sem a bolha o controle da tela funciona do mesmo jeito.
             }
         }
+        return false
     }
 
-    fun esconderBolha() {
-        principal.post {
-            val vista = bolha ?: return@post
-            bolha = null
-            runCatching { getSystemService(WindowManager::class.java).removeView(vista) }
-        }
+    private fun achar(no: AccessibilityNodeInfo?, profundidade: Int = 0, serve: (AccessibilityNodeInfo) -> Boolean): AccessibilityNodeInfo? {
+        if (no == null || profundidade > 40) return null
+        if (serve(no)) return no
+        for (i in 0 until no.childCount) achar(no.getChild(i), profundidade + 1, serve)?.let { return it }
+        return null
     }
 
     // ---------------------------------------------------------------- apoio

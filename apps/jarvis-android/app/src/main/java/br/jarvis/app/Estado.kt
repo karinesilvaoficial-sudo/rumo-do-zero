@@ -17,6 +17,10 @@ object Estado {
     @Volatile var nivel = 0f
     /** A tela do Jarvis está visível? (apps só podem ser abertos livremente nesse caso) */
     @Volatile var telaVisivel = false
+    /** O que o Jarvis está fazendo na tela agora ("Tocando em Pesquisar"), mostrado na bolha. */
+    @Volatile var passo = ""
+    /** Modo ao vivo: depois de cada resposta ele segue ouvindo, sem precisar ser chamado de novo. */
+    @Volatile var aoVivo = false
     /**
      * Tela de outro app que o Jarvis quer abrir mas não pôde, porque o celular está bloqueado.
      * A tela do Jarvis, que aparece por cima do bloqueio, pede o desbloqueio e então abre.

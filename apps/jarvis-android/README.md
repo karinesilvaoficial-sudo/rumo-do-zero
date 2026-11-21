@@ -108,6 +108,17 @@ O que saber antes de usar:
   se você desinstalar o app ou disser "esquece que…".
 - O número de WhatsApp sem código de país é tratado como brasileiro (+55).
 
+## Bolha, modo ao vivo e mensagens novas
+
+- **Bolha**: com o celular desbloqueado, o Jarvis aparece como um cartão pequeno no topo, por
+  cima do aplicativo em uso, e some quando volta a aguardar. A tela cheia fica para quando o
+  celular está bloqueado ou você abre o app.
+- **Modo ao vivo**: diga "modo ao vivo" e a conversa fica contínua, sem repetir "Jarvis". Ele
+  olha a tela quando você fala do que está vendo. Termina com "sair do modo ao vivo" ou depois
+  de três silêncios seguidos. O microfone fica aberto durante esse tempo.
+- **WhatsApp para quem não escreveu**: "manda um WhatsApp para o João dizendo que cheguei" abre a
+  conversa, e, com o controle da tela ativado, toca em enviar depois do seu "sim".
+
 ## Conversa mais natural e avisos
 
 - **Nome e comando juntos**: com a voz natural ativa, dá para dizer "Jarvis, abre o YouTube" de

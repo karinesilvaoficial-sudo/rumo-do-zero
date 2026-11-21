@@ -258,14 +258,14 @@ class MainActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
-        Estado.telaVisivel = true
+        Estado.mudar { telaVisivel = true }
         Estado.observar(aoMudar)
         atualizar()
     }
 
     override fun onStop() {
         Estado.pararDeObservar(aoMudar)
-        Estado.telaVisivel = false
+        Estado.mudar { telaVisivel = false }
         super.onStop()
     }
 
