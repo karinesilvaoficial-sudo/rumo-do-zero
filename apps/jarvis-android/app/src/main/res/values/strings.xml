@@ -26,6 +26,9 @@
     <string name="salvar_limite">Salvar limite</string>
     <string name="titulo_historico">Últimas conversas</string>
     <string name="historico_vazio">As conversas com a inteligência aparecem aqui.</string>
+    <string name="modo_live">Modo live (conversa contínua)</string>
+    <string name="sair_do_live">Sair do modo live</string>
+    <string name="conversa_continua">Continuar ouvindo depois de responder</string>
     <string name="titulo_ia">Inteligência: conversar e resolver por você</string>
     <string name="explicacao_ia">Para conversar, o Jarvis usa o Claude, da Anthropic. Crie uma chave em console.anthropic.com e cole aqui. O uso é cobrado pela Anthropic na sua conta. Suas perguntas são enviadas para lá e, quando você pede, também os compromissos, contatos e mensagens que o Jarvis consultar. A chave fica só neste aparelho.</string>
     <string name="dica_chave">Chave (começa com sk-ant-)</string>
@@ -48,7 +51,7 @@
     <string name="cakto_ausente">Sem chaves: o Jarvis não consulta vendas.</string>
     <string name="cakto_salva">Chaves da Cakto salvas. Para remover, salve em branco.</string>
     <string name="titulo_comandos">O que você pode dizer</string>
-    <string name="comandos">“Jarvis, abrir YouTube”\n“Que horas são?” · “Que dia é hoje?”\n“Pesquisar receita de bolo”\n“Tocar Legião Urbana”\n“Ligar a lanterna” · “Desligar a lanterna”\n“Aumentar o volume” · “Silenciar”\n“Timer de 5 minutos”\n“Alarme para 7 e meia”\n“Como está a bateria?”\nQualquer pergunta ou conversa\n“O que tenho na agenda amanhã?”\n“Marca dentista quinta às 15h”\n“Chegou alguma mensagem?”\n“Responde a Ana que chego às 8”\n“Lembra que minha irmã se chama Ana”\n“Me lembra de tomar o remédio às 20h”\n“O que é isso?” (ele abre a câmera)\n“Olha a minha tela”\n“Pausa a música” · “Toca Legião Urbana”\n“Liga para a Maria”\n“Quanto vendi hoje?”\n“Jarvis, abre o YouTube e coloca o primeiro vídeo” (tudo numa frase, com a voz natural ativa)\n“Bom dia” (resumo do dia)\n“Modo ao vivo” (conversa contínua) · “Sair do modo ao vivo”\n“Manda um WhatsApp para o João dizendo que cheguei”\n“Rola o feed” · “Jarvis” (no meio de uma tarefa, para)\n“Desligar” (para de escutar)</string>
+    <string name="comandos">“Jarvis, abrir YouTube”\n“Que horas são?” · “Que dia é hoje?”\n“Pesquisar receita de bolo”\n“Tocar Legião Urbana”\n“Ligar a lanterna” · “Desligar a lanterna”\n“Aumentar o volume” · “Silenciar”\n“Timer de 5 minutos”\n“Alarme para 7 e meia”\n“Como está a bateria?”\nQualquer pergunta ou conversa\n“O que tenho na agenda amanhã?”\n“Marca dentista quinta às 15h”\n“Chegou alguma mensagem?”\n“Responde a Ana que chego às 8”\n“Lembra que minha irmã se chama Ana”\n“Me lembra de tomar o remédio às 20h”\n“O que é isso?” (ele abre a câmera)\n“Olha a minha tela”\n“Pausa a música” · “Toca Legião Urbana”\n“Liga para a Maria”\n“Quanto vendi hoje?”\n“Jarvis, abre o YouTube e coloca o primeiro vídeo” (tudo numa frase, com a voz natural ativa)\n“Bom dia” (resumo do dia)\n“Modo live” (conversa contínua) · “Sair do modo live”\n“Manda um WhatsApp para o João dizendo que cheguei”\n“Rola o feed” · “Jarvis” (no meio de uma tarefa, para)\n“Desligar” (para de escutar)</string>
     <string name="notificacao_canal">Jarvis escutando</string>
     <string name="notificacao_texto">Diga “Jarvis” ou bata 2 palmas</string>
 </resources>

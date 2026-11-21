@@ -85,6 +85,18 @@
             android:textSize="16sp"
             android:visibility="gone" />
 
+        <Button
+            android:id="@+id/botaoLive"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/botao_secundario"
+            android:text="@string/modo_live"
+            android:textAllCaps="false"
+            android:textColor="@color/ciano"
+            android:textSize="16sp"
+            android:visibility="gone" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -106,6 +118,14 @@
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
                 android:text="@string/ativar_por_palmas"
+                android:textColor="@color/texto"
+                android:textSize="15sp" />
+
+            <Switch
+                android:id="@+id/chaveConversaContinua"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="@string/conversa_continua"
                 android:textColor="@color/texto"
                 android:textSize="15sp" />
 

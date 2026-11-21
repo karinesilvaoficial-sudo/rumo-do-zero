@@ -51,7 +51,7 @@ class BolhaDoJarvis(private val contexto: Context) {
         g.fase = fase
         if (faseAnterior == Fase.AGUARDANDO && (fase == Fase.FALANDO || fase == Fase.OUVINDO || fase == Fase.PENSANDO)) g.chamar()
         faseAnterior = fase
-        titulo?.text = (if (Estado.aoVivo) "AO VIVO · " else "") + when (fase) {
+        titulo?.text = (if (Estado.aoVivo) "LIVE · " else "") + when (fase) {
             Fase.OUVINDO -> "Ouvindo"
             Fase.PENSANDO -> if (Estado.passo.isNotEmpty()) "Agindo" else "Pensando"
             Fase.FALANDO -> "Jarvis"

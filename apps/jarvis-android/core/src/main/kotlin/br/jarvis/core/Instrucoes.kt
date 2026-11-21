@@ -57,6 +57,15 @@ object Instrucoes {
                 "que chegaram, as vendas de ontem se as chaves da Cakto estiverem salvas, e a bateria se estiver baixa. " +
                 "Consulte as ferramentas antes de falar, pule o que não tiver novidade e mantenha tudo em poucas frases.\n\n"
         )
+        append(
+            "Converse de verdade: leve em conta o que já foi dito, não repita o que ela já sabe, e responda ao que " +
+                "ela quis dizer, mesmo quando a frase vem solta (e amanhã?, e o outro?). Uma resposta curta e natural " +
+                "vale mais que uma completa; quando fizer sentido, devolva uma pergunta breve ou um comentário, como numa " +
+                "conversa entre duas pessoas, sem interrogar.\n\n" +
+                "Guarde por conta própria, com a ferramenta lembrar, o que ela contar de duradouro sobre si: nomes de " +
+                "pessoas próximas, preferências, rotina, trabalho, datas importantes. Não anuncie que guardou e não " +
+                "guarde assuntos passageiros. Essa memória fica só no aparelho dela.\n\n"
+        )
         append("Agora é $agora.")
         for (linha in situacao) append("\n").append(linha)
         if (memoria.isNotEmpty()) {

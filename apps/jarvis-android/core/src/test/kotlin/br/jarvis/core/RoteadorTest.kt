@@ -1,6 +1,7 @@
 package br.jarvis.core
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -53,5 +54,12 @@ class RoteadorTest {
         assertTrue(vai("bom dia"))
         assertFalse(vai("olá"))
         assertFalse(vai("bom dia", comIa = false))
+    }
+
+    @Test
+    fun `pedido de modo live liga desliga ou nao e pedido`() {
+        for (fala in listOf("modo live", "modo ao vivo", "live", "ativar o modo live", "Jarvis modo laive")) assertEquals(true, Roteador.pedidoDeLive(fala), fala)
+        for (fala in listOf("sair do modo live", "desliga o ao vivo", "parar o live", "encerrar modo ao vivo")) assertEquals(false, Roteador.pedidoDeLive(fala), fala)
+        for (fala in listOf("que horas são", "tem algum jogo passando ao vivo hoje na televisão", "abrir youtube")) assertEquals(null, Roteador.pedidoDeLive(fala), fala)
     }
 }

@@ -32,6 +32,7 @@ class MainActivity : Activity() {
     private lateinit var aviso: TextView
     private lateinit var botaoPrincipal: Button
     private lateinit var botaoFalar: Button
+    private lateinit var botaoLive: Button
     private lateinit var botaoSobrepor: Button
     private lateinit var botaoBateria: Button
     private lateinit var botaoAgenda: Button
@@ -62,6 +63,7 @@ class MainActivity : Activity() {
         aviso = findViewById(R.id.aviso)
         botaoPrincipal = findViewById(R.id.botaoPrincipal)
         botaoFalar = findViewById(R.id.botaoFalar)
+        botaoLive = findViewById(R.id.botaoLive)
         botaoSobrepor = findViewById(R.id.botaoSobrepor)
         botaoBateria = findViewById(R.id.botaoBateria)
         botaoAgenda = findViewById(R.id.botaoAgenda)
@@ -72,6 +74,10 @@ class MainActivity : Activity() {
         botaoPrincipal.setOnClickListener {
             if (JarvisService.rodando) JarvisService.enviar(this, JarvisService.ACAO_PARAR) else ligar()
         }
+        botaoLive.setOnClickListener { JarvisService.enviar(this, JarvisService.ACAO_LIVE) }
+        val chaveContinua = findViewById<Switch>(R.id.chaveConversaContinua)
+        chaveContinua.isChecked = preferencias.conversaContinua
+        chaveContinua.setOnCheckedChangeListener { _, ligado -> preferencias.conversaContinua = ligado }
         botaoFalar.setOnClickListener { JarvisService.enviar(this, JarvisService.ACAO_ATIVAR) }
 
         val chaveVoz = findViewById<Switch>(R.id.chaveVoz)
@@ -394,6 +400,8 @@ class MainActivity : Activity() {
         val ligado = fase != Fase.PARADO
         botaoPrincipal.setText(if (ligado) R.string.parar else R.string.iniciar)
         botaoFalar.visibility = if (fase == Fase.AGUARDANDO) View.VISIBLE else View.GONE
+        botaoLive.visibility = if (ligado && preferencias.chaveIa.isNotEmpty() && (fase == Fase.AGUARDANDO || Estado.aoVivo)) View.VISIBLE else View.GONE
+        botaoLive.setText(if (Estado.aoVivo) R.string.sair_do_live else R.string.modo_live)
 
         botaoSobrepor.visibility = if (Settings.canDrawOverlays(this)) View.GONE else View.VISIBLE
         // Agenda, contatos e mensagens só servem à inteligência: os botões aparecem depois de salvar a chave.

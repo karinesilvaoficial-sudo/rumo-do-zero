@@ -45,6 +45,8 @@ class Agente(
     private val aoGastar: (tokensDeEntrada: Long, tokensDeSaida: Long) -> Unit = { _, _ -> },
     /** Ainda há saldo no limite diário que a pessoa definiu? */
     private val podeGastar: () -> Boolean = { true },
+    /** Trocas de conversas anteriores, para a conversa continuar de onde parou depois de reiniciar. */
+    historicoInicial: List<Pair<String, String>> = emptyList(),
 ) {
     private val cliente: AnthropicClient = AnthropicOkHttpClient.builder()
         .apiKey(chave)
@@ -58,7 +60,7 @@ class Agente(
     private val definicoes = ferramentas.map(::definir)
 
     /** Trocas anteriores (o que a pessoa disse, o que o Jarvis respondeu), só em texto. */
-    private val historico = ArrayList<Pair<String, String>>()
+    private val historico = ArrayList(historicoInicial.takeLast(MAXIMO_DE_TROCAS))
 
     // Estado do pedido em andamento. As instruções e as mensagens não mudam no meio de um
     // pedido: o modelo exige receber de volta, intacto, tudo o que veio antes do raciocínio dele.

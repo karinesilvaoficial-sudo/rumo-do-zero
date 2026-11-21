@@ -40,6 +40,8 @@ class Cerebro(
             diario.registrar(SimpleDateFormat("EEE d/MM/yyyy HH:mm", Locale("pt", "BR")).format(Date()), fala, resposta)
         },
         interrompido = interrompido,
+        // As últimas conversas, guardadas no aparelho, voltam como contexto quando o Jarvis é reaberto.
+        historicoInicial = diario.buscar("", 6).map { it.fala to it.resposta },
         aoGastar = { entrada, saida -> gasto.registrar(entrada, saida) },
         podeGastar = { gasto.dentroDoLimite(preferencias.limiteDiario.toDouble()) },
         registrar = { mensagem, erro ->

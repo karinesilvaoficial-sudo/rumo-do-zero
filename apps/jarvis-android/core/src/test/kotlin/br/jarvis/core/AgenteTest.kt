@@ -293,6 +293,18 @@ class AgenteTest {
     }
 
     @Test
+    fun `conversa de antes volta como contexto depois de reiniciar`() {
+        respostas.add(mensagem("end_turn", texto("Às nove.")))
+        val a = Agente(
+            "chave", emptyList(), { "x" }, enderecoDaApi = "http://127.0.0.1:${servidor.address.port}",
+            historicoInicial = listOf("que horas abre a farmácia" to "Às oito."),
+        )
+        assertEquals("Às nove.", a.ouvir("e a padaria?"))
+        assertContains(pedidos[0], "que horas abre a farmácia")
+        assertContains(pedidos[0], "Às oito.")
+    }
+
+    @Test
     fun `laco de ferramentas tem limite`() {
         repeat(40) { respostas.add(mensagem("tool_use", uso("toolu_$it", "agenda_ver", "{}"))) }
         val fala = agente().ouvir("fique em laço")

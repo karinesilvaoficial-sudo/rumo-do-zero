@@ -27,6 +27,20 @@ object Roteador {
     }
 
     /**
+     * A pessoa pediu para ligar ou desligar o modo live (conversa contínua)? Devolve `true` para
+     * ligar, `false` para desligar e `null` quando a fala não é sobre isso.
+     */
+    fun pedidoDeLive(fala: String): Boolean? {
+        val palavras = Texto.normalizar(fala).split(" ").filter { it.isNotEmpty() }
+        val texto = palavras.joinToString(" ")
+        val citaOModo = texto.contains("ao vivo") || "live" in palavras || "laive" in palavras || "laiv" in palavras
+        // Frases longas que só mencionam a palavra ("tem jogo ao vivo hoje?") não são um pedido.
+        if (!citaOModo || palavras.size > 6) return null
+        val sair = listOf("sair", "sai", "desliga", "desligar", "parar", "para", "pare", "encerrar", "encerra", "fechar", "fecha", "desativar", "desativa")
+        return palavras.none { it in sair }
+    }
+
+    /**
      * Depois de falar, o Jarvis só continua ouvindo se ele mesmo fez uma pergunta
      * ("Posso enviar?", "Qual aplicativo, mestre?"). Fora isso, volta a esperar o nome
      * ou as palmas: assim uma conversa ao lado ou a TV não viram comando.

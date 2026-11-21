@@ -188,6 +188,15 @@ class JarvisService : Service() {
                 preferencias.ativo = false
                 stopSelf()
             }
+            // Botão "Modo live" da tela: vale quando ele está aguardando ou já no meio do live.
+            ACAO_LIVE -> if (Estado.aoVivo) {
+                descartarReconhecedor()
+                mudarLive(false)
+            } else if (Estado.fase == Fase.AGUARDANDO) {
+                pararEscuta()
+                mostrarPainel()
+                mudarLive(true)
+            }
             ACAO_ANUNCIAR -> intent.getStringExtra(EXTRA_TEXTO)?.let { anunciar(it) }
             ACAO_ATIVAR -> if (Estado.fase == Fase.AGUARDANDO) {
                 pararEscuta()
@@ -479,9 +488,9 @@ class JarvisService : Service() {
                 erro == SpeechRecognizer.ERROR_NETWORK || erro == SpeechRecognizer.ERROR_NETWORK_TIMEOUT ->
                     falar("Sem internet para entender o comando.") { iniciarEscuta() }
                 // No modo ao vivo, um silêncio não encerra a conversa; depois de três seguidos, ele volta a aguardar.
-                continuacao && Estado.aoVivo && ++silenciosAoVivo < 3 -> ouvirComando(continuacao = true)
+                continuacao && Estado.aoVivo && ++silenciosAoVivo < 4 -> ouvirComando(continuacao = true)
                 continuacao -> {
-                    if (Estado.aoVivo) Estado.mudar { aoVivo = false; resposta = "Modo ao vivo encerrado." }
+                    if (Estado.aoVivo) Estado.mudar { aoVivo = false; resposta = "Modo live encerrado." }
                     iniciarEscuta()
                 }
                 else -> falar("Não ouvi nada.") { iniciarEscuta() }
@@ -583,13 +592,9 @@ class JarvisService : Service() {
     private fun tratarFala(texto: String) {
         Estado.mudar { ouvido = texto }
         silenciosAoVivo = 0
-        val dito = Texto.normalizar(texto)
-        if (dito.contains("ao vivo")) {
-            val sair = listOf("sair", "sai", "desliga", "desligar", "parar", "para", "encerrar", "encerra", "fechar", "fecha").any { it in dito.split(" ") }
-            Estado.mudar { aoVivo = !sair }
-            val fala = if (sair) "Modo ao vivo encerrado, mestre." else "Modo ao vivo ligado, mestre. Pode falar."
-            Estado.mudar { resposta = fala }
-            falar(fala) { if (sair) iniciarEscuta() else ouvirComando(continuacao = true) }
+        val live = if (cerebro?.aguardandoConfirmacao == true) null else Roteador.pedidoDeLive(texto)
+        if (live != null) {
+            mudarLive(live)
             return
         }
         val comando = Interpretador.interpretar(texto)
@@ -638,7 +643,9 @@ class JarvisService : Service() {
                 Estado.mudar { resposta = dito }
                 // Só segue ouvindo se o Jarvis perguntou algo (ou espera um "sim"); senão volta a aguardar o nome.
                 falar(dito) {
-                    if (Roteador.esperaResposta(dito) || mente.aguardandoConfirmacao || Estado.aoVivo) ouvirComando(continuacao = true)
+                    // Conversa de verdade: depois de responder, ouve a próxima fala sem exigir o nome.
+                    // Se a pessoa não disser nada, volta a aguardar em silêncio.
+                    if (Roteador.esperaResposta(dito) || mente.aguardandoConfirmacao || Estado.aoVivo || preferencias.conversaContinua) ouvirComando(continuacao = true)
                     else iniciarEscuta()
                 }
             }
@@ -789,6 +796,14 @@ class JarvisService : Service() {
         }
     }
 
+    /** Liga ou desliga o modo live: conversa contínua, sem repetir o nome, até a pessoa sair ou se calar. */
+    private fun mudarLive(ligar: Boolean) {
+        silenciosAoVivo = 0
+        val fala = if (ligar) "Modo live ligado, mestre. Pode falar." else "Modo live encerrado, mestre."
+        Estado.mudar { aoVivo = ligar; resposta = fala }
+        falar(fala) { if (ligar) ouvirComando(continuacao = true) else iniciarEscuta() }
+    }
+
     /** Esconde a bolha por um instante, para ela não sair na captura da tela. */
     fun ocultarBolha(ocultar: Boolean) {
         principal.post { bolha.ocultarParaCaptura(ocultar) }
@@ -903,6 +918,7 @@ class JarvisService : Service() {
         const val ACAO_ATIVAR = "br.jarvis.app.ATIVAR"
         const val ACAO_RECARREGAR = "br.jarvis.app.RECARREGAR"
         const val ACAO_ANUNCIAR = "br.jarvis.app.ANUNCIAR"
+        const val ACAO_LIVE = "br.jarvis.app.LIVE"
         const val EXTRA_TEXTO = "texto"
 
         /** O serviço em execução, para a captura de tela pedir a imagem a ele. */

@@ -44,7 +44,7 @@ class Memoria(private val arquivo: File) {
         Ferramenta(
             nome = "lembrar",
             descricao = "Guarda um fato sobre a pessoa para as próximas conversas (nome, preferências, quem é quem, " +
-                "rotinas). Use quando ela pedir para você lembrar de algo ou contar algo duradouro sobre si. " +
+                "rotinas). Use quando ela pedir para você lembrar de algo e também, sem ela pedir, quando contar algo duradouro sobre si. " +
                 "Não use para compromissos com data (isso vai na agenda) nem para o que você leu em mensagens recebidas.",
             parametros = mapOf("fato" to Parametro("string", "O fato, numa frase curta e completa. Ex.: A irmã dela se chama Ana.")),
         ) { a -> if (lembrar(a.texto("fato"))) "Guardado." else "Isso já estava guardado." },

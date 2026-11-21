@@ -80,6 +80,11 @@ class Preferencias(contexto: Context) {
         get() = p.getBoolean("ativo", false)
         set(v) = p.edit().putBoolean("ativo", v).apply()
 
+    /** Depois de uma resposta da inteligência, ouvir a próxima fala sem precisar do nome. */
+    var conversaContinua: Boolean
+        get() = p.getBoolean("conversaContinua", true)
+        set(v) = p.edit().putBoolean("conversaContinua", v).apply()
+
     /** Falar "mensagem de Fulano" quando chega uma mensagem, sem ser chamado. */
     var avisarMensagens: Boolean
         get() = p.getBoolean("avisarMensagens", false)
