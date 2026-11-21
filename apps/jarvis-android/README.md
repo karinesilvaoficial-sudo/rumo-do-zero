@@ -108,6 +108,22 @@ O que saber antes de usar:
   se você desinstalar o app ou disser "esquece que…".
 - O número de WhatsApp sem código de país é tratado como brasileiro (+55).
 
+## Conversa mais natural e avisos
+
+- **Nome e comando juntos**: com a voz natural ativa, dá para dizer "Jarvis, abre o YouTube" de
+  uma vez. O áudio dito depois do nome é transcrito pela ElevenLabs. Sem a chave, ou se a
+  transcrição falhar, vale o fluxo de sempre: "Jarvis", "Sim, mestre?", comando.
+- **Fala em trechos**: a primeira frase da resposta começa a tocar enquanto o resto é gerado.
+- **"Bom dia"**: resumo do dia com agenda, mensagens e, se houver chaves da Cakto, vendas de ontem.
+- **Avisos**: 15 minutos antes de cada compromisso (ligado de fábrica) e, se você ligar, o
+  nome de quem mandou mensagem. O conteúdo da mensagem só é lido quando você pede.
+- **Limite de gasto**: um teto diário em dólares para a inteligência, estimado pelos tokens de
+  cada resposta (buscas na internet são cobradas à parte e não entram). Ao atingir, o Jarvis
+  avisa e para de consultar a inteligência até o dia seguinte; os comandos simples continuam.
+- **Últimas conversas** aparecem na tela do Jarvis.
+
+A inteligência usa o Claude Haiku 5.5, o modelo mais rápido e barato da família.
+
 ## Mexer na tela (acessibilidade)
 
 Com o botão **Deixar o Jarvis mexer na tela**, você ativa o Jarvis em Configurações >

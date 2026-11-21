@@ -17,7 +17,10 @@ object Roteador {
             is Comando.Ligar -> comando.destino.none { it.isDigit() }
             // "Tocar X" sem falar em YouTube: a inteligência toca direto no aplicativo de música.
             is Comando.TocarNoYoutube -> !Texto.normalizar(fala).contains("youtube")
-            Comando.Horas, Comando.Data, Comando.Bateria, Comando.Ajuda, Comando.Saudacao, Comando.Agradecimento ->
+            // "Bom dia" pede o resumo do dia (agenda, mensagens, vendas), que só a inteligência monta.
+            Comando.Saudacao -> Texto.normalizar(fala).startsWith("bom dia") ||
+                Texto.normalizar(fala).split(" ").count { it.isNotEmpty() } > FRASE_CURTA
+            Comando.Horas, Comando.Data, Comando.Bateria, Comando.Ajuda, Comando.Agradecimento ->
                 Texto.normalizar(fala).split(" ").count { it.isNotEmpty() } > FRASE_CURTA
             else -> false
         }

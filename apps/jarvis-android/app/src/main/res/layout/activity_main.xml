@@ -109,6 +109,22 @@
                 android:textColor="@color/texto"
                 android:textSize="15sp" />
 
+            <Switch
+                android:id="@+id/chaveAvisarCompromissos"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="@string/avisar_compromissos"
+                android:textColor="@color/texto"
+                android:textSize="15sp" />
+
+            <Switch
+                android:id="@+id/chaveAvisarMensagens"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="@string/avisar_mensagens"
+                android:textColor="@color/texto"
+                android:textSize="15sp" />
+
             <TextView
                 android:id="@+id/rotuloSensibilidade"
                 android:layout_width="match_parent"
@@ -179,6 +195,38 @@
                 android:layout_marginTop="8dp"
                 android:textColor="@color/texto_fraco"
                 android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/gastoDeHoje"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textColor="@color/texto_fraco"
+                android:textSize="13sp" />
+
+            <EditText
+                android:id="@+id/campoLimite"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:hint="@string/dica_limite"
+                android:importantForAutofill="no"
+                android:inputType="numberDecimal"
+                android:singleLine="true"
+                android:textColor="@color/texto"
+                android:textColorHint="@color/texto_fraco"
+                android:textSize="15sp" />
+
+            <Button
+                android:id="@+id/botaoSalvarLimite"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/botao_secundario"
+                android:text="@string/salvar_limite"
+                android:textAllCaps="false"
+                android:textColor="@color/ciano"
+                android:textSize="15sp" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -384,6 +432,32 @@
             android:textColor="@color/alerta"
             android:textSize="15sp"
             android:visibility="gone" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/cartao"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/titulo_historico"
+                android:textColor="@color/ciano"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/historico"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:lineSpacingExtra="3dp"
+                android:textColor="@color/texto"
+                android:textIsSelectable="true"
+                android:textSize="14sp" />
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"

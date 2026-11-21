@@ -55,7 +55,39 @@ class VozNatural(
         }.filter { it.id.isNotEmpty() }
     }
 
+    /** Transforma em texto o que a pessoa falou ([wav] é um arquivo WAV inteiro). */
+    fun transcrever(wav: ByteArray): String {
+        val fronteira = "jarvis" + System.nanoTime()
+        val corpo = java.io.ByteArrayOutputStream()
+        fun campo(nome: String, valor: String) = corpo.write(
+            "--$fronteira\r\nContent-Disposition: form-data; name=\"$nome\"\r\n\r\n$valor\r\n".toByteArray()
+        )
+        campo("model_id", "scribe_v1")
+        campo("language_code", "pt")
+        corpo.write("--$fronteira\r\nContent-Disposition: form-data; name=\"file\"; filename=\"fala.wav\"\r\nContent-Type: audio/wav\r\n\r\n".toByteArray())
+        corpo.write(wav)
+        corpo.write("\r\n--$fronteira--\r\n".toByteArray())
+        val resposta = try {
+            Rede.chamar(
+                "POST", "$enderecoBase/v1/speech-to-text",
+                mapOf("xi-api-key" to chave, "Content-Type" to "multipart/form-data; boundary=$fronteira", "Accept" to "application/json"),
+                corpo.toByteArray(), tempoLimiteMs = 20_000,
+            )
+        } catch (e: java.io.IOException) {
+            throw FalhaDeServico("Sem conexão com a ElevenLabs.")
+        }
+        if (resposta.codigo !in 200..299)
+            throw FalhaDeServico("A ElevenLabs respondeu ${resposta.codigo} ao transcrever: ${resposta.texto.take(160)}", resposta.codigo)
+        return ObjectMapper().readTree(resposta.texto).path("text").asText("").trim()
+    }
+
     companion object {
+        /** Entre as vozes da conta, a primeira marcada como brasileira ou em português. */
+        fun vozBrasileira(vozes: List<Voz>): Voz? {
+            fun tem(voz: Voz, vararg termos: String) = termos.any { Texto.normalizar(voz.descricao + " " + voz.nome).contains(it) }
+            return vozes.firstOrNull { tem(it, "brazil", "brasil") } ?: vozes.firstOrNull { tem(it, "portugu", " pt") }
+        }
+
         /** "George", voz masculina grave da biblioteca padrão da ElevenLabs. */
         const val VOZ_PADRAO = "JBFqnCBsd6RMkjVDRZzb"
     }

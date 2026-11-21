@@ -1,5 +1,6 @@
 package br.jarvis.app
 
+import java.util.Locale
 import kotlin.concurrent.thread
 import br.jarvis.core.VozNatural
 import android.app.AlertDialog
@@ -85,6 +86,23 @@ class MainActivity : Activity() {
             preferencias.palmas = ligado
             JarvisService.enviar(this, JarvisService.ACAO_RECARREGAR)
         }
+        val chaveMensagens = findViewById<Switch>(R.id.chaveAvisarMensagens)
+        chaveMensagens.isChecked = preferencias.avisarMensagens
+        chaveMensagens.setOnCheckedChangeListener { _, ligado -> preferencias.avisarMensagens = ligado }
+        val chaveCompromissos = findViewById<Switch>(R.id.chaveAvisarCompromissos)
+        chaveCompromissos.isChecked = preferencias.avisarCompromissos
+        chaveCompromissos.setOnCheckedChangeListener { _, ligado -> preferencias.avisarCompromissos = ligado }
+
+        val campoLimite = findViewById<EditText>(R.id.campoLimite)
+        campoLimite.setText(String.format(Locale.US, "%.2f", preferencias.limiteDiario))
+        findViewById<Button>(R.id.botaoSalvarLimite).setOnClickListener {
+            // Aceita vírgula ou ponto; campo vazio ou inválido vira zero, que é "sem limite".
+            preferencias.limiteDiario = campoLimite.text.toString().replace(',', '.').toFloatOrNull() ?: 0f
+            campoLimite.setText(String.format(Locale.US, "%.2f", preferencias.limiteDiario))
+            esconderTeclado(campoLimite)
+            mostrarGastoEHistorico()
+        }
+
         val barra = findViewById<SeekBar>(R.id.sensibilidade)
         barra.progress = preferencias.sensibilidade - 1
         mostrarSensibilidade()
@@ -126,6 +144,17 @@ class MainActivity : Activity() {
             // Campo da chave em branco mantém a chave atual; para remover, use o botão de apagar.
             if (campoChaveVoz.text.isNotBlank()) preferencias.chaveVoz = campoChaveVoz.text.toString()
             preferencias.idDaVoz = campoIdDaVoz.text.toString()
+            // Sem voz escolhida, procura na conta uma voz brasileira; a padrão é inglesa e fala português com sotaque.
+            val chaveAtual = preferencias.chaveVoz
+            if (preferencias.idDaVoz.isEmpty() && chaveAtual.isNotEmpty()) thread(name = "jarvis-voz-br") {
+                val brasileira = runCatching { VozNatural.vozBrasileira(VozNatural(chaveAtual).listarVozes()) }.getOrNull()
+                if (brasileira != null) runOnUiThread {
+                    if (preferencias.idDaVoz.isEmpty()) {
+                        preferencias.idDaVoz = brasileira.id
+                        if (!isFinishing && !isDestroyed) campoIdDaVoz.setText(brasileira.id)
+                    }
+                }
+            }
             campoChaveVoz.text.clear()
             esconderTeclado(campoChaveVoz)
             mostrarEstadoDaVoz()
@@ -240,8 +269,22 @@ class MainActivity : Activity() {
         super.onStop()
     }
 
+    /** Mostra quanto a inteligência custou hoje e as últimas conversas. */
+    private fun mostrarGastoEHistorico() {
+        val gasto = Cerebro.gastoDe(this).deHoje()
+        val limite = preferencias.limiteDiario
+        findViewById<TextView>(R.id.gastoDeHoje).text =
+            if (limite > 0f) String.format(Locale.US, "Gasto de hoje com a inteligência: US$ %.3f de US$ %.2f (estimativa).", gasto, limite)
+            else String.format(Locale.US, "Gasto de hoje com a inteligência: US$ %.3f, sem limite (estimativa).", gasto)
+        val trocas = Cerebro.diarioDe(this).buscar("", 6).reversed()
+        findViewById<TextView>(R.id.historico).text =
+            if (trocas.isEmpty()) getString(R.string.historico_vazio)
+            else trocas.joinToString("\n\n") { "${it.quando}\nVocê: ${it.fala}\nJarvis: ${it.resposta}" }
+    }
+
     override fun onResume() {
         super.onResume()
+        mostrarGastoEHistorico()
         atualizar()
     }
 

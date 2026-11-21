@@ -14,7 +14,7 @@ import com.anthropic.models.beta.messages.BetaOutputConfig
 import com.anthropic.models.beta.messages.BetaStopReason
 import com.anthropic.models.beta.messages.BetaTool
 import com.anthropic.models.beta.messages.BetaToolResultBlockParam
-import com.anthropic.models.beta.messages.BetaWebSearchTool20260209
+import com.anthropic.models.beta.messages.BetaWebSearchTool20250305
 import com.anthropic.models.beta.messages.MessageCreateParams
 import com.fasterxml.jackson.core.type.TypeReference
 import java.time.Duration
@@ -41,6 +41,10 @@ class Agente(
     private val aoConcluir: (fala: String, resposta: String) -> Unit = { _, _ -> },
     /** A pessoa mandou parar? Consultado entre um passo e outro de uma tarefa longa. */
     private val interrompido: () -> Boolean = { false },
+    /** Chamado a cada resposta do modelo, com os tokens cobrados. */
+    private val aoGastar: (tokensDeEntrada: Long, tokensDeSaida: Long) -> Unit = { _, _ -> },
+    /** Ainda há saldo no limite diário que a pessoa definiu? */
+    private val podeGastar: () -> Boolean = { true },
 ) {
     private val cliente: AnthropicClient = AnthropicOkHttpClient.builder()
         .apiKey(chave)
@@ -61,6 +65,8 @@ class Agente(
     private var sistema = ""
     private var falaDoPedido = ""
     private val mensagens = ArrayList<BetaMessageParam>()
+
+    private class LimiteAtingido : Exception()
 
     private class Pendencia(
         val idDoPedido: String,
@@ -85,6 +91,7 @@ class Agente(
     /** Recebe uma fala da pessoa e devolve o que o Jarvis deve dizer. */
     @Synchronized
     fun ouvir(fala: String): String = try {
+        if (!podeGastar()) throw LimiteAtingido()
         val p = pendencia.takeIf { aguardandoConfirmacao }
         if (p != null) {
             pendencia = null
@@ -101,6 +108,8 @@ class Agente(
             mensagens.add(BetaMessageParam.ofUser(fala))
         }
         rodar()
+    } catch (e: LimiteAtingido) {
+        abandonar("Mestre, o limite de gasto de hoje com a inteligência foi atingido. Ele pode ser aumentado na tela do Jarvis.")
     } catch (e: UnauthorizedException) {
         abandonar("A chave da inteligência não foi aceita. Confira a chave na tela do Jarvis.")
     } catch (e: RateLimitException) {
@@ -121,6 +130,7 @@ class Agente(
         repeat(MAXIMO_DE_PASSOS) {
             if (interrompido()) return abandonar("Interrompido, mestre.")
             val resposta = cliente.beta().messages().create(montarPedido())
+            runCatching { aoGastar(resposta.usage().inputTokens(), resposta.usage().outputTokens()) }
             val parada = resposta.stopReason().orElse(null)
             if (parada == BetaStopReason.REFUSAL) return abandonar("Com isso eu não posso ajudar.")
 
@@ -257,11 +267,8 @@ class Agente(
             .system(sistema)
             // Esforço baixo: numa conversa falada, responder rápido importa mais que raciocinar longamente.
             .outputConfig(BetaOutputConfig.builder().effort(BetaOutputConfig.Effort.LOW).build())
-            // Se o modelo principal recusar por engano um pedido comum, a própria API tenta com outro modelo.
-            .addBeta("server-side-fallback-2026-07-01")
-            .fallbacksDefault()
             // Busca na internet para o que muda com o tempo (clima, notícias, resultados).
-            .addTool(BetaWebSearchTool20260209.builder().maxUses(3L).build())
+            .addTool(BetaWebSearchTool20250305.builder().maxUses(3L).build())
         for (definicao in definicoes) pedido.addTool(definicao)
         pedido.messages(mensagens)
         return pedido.build()
@@ -295,7 +302,8 @@ class Agente(
     }
 
     companion object {
-        const val MODELO = "claude-sonnet-5-5"
+        /** O modelo mais rápido e barato da família: numa conversa falada, a espera pesa mais que o último grau de raciocínio. */
+        const val MODELO = "claude-haiku-5-5"
         private const val MAXIMO_DE_TROCAS = 8
         /** Idas e vindas com o modelo num mesmo pedido, para um engano não virar um laço sem fim. */
         private const val MAXIMO_DE_PASSOS = 24

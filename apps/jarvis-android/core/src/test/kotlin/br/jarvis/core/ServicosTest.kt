@@ -189,4 +189,27 @@ class ServicosTest {
         for (rotulo in listOf("Pesquisar", "Reproduzir", "Início", "Shorts", "Voltar", "", "Enviados", "Compras recentes", "Postagens", "Curtir", "Seguir"))
             assertTrue(!Limites.toqueSerio(rotulo), rotulo)
     }
+
+    @Test
+    fun `transcreve o audio enviando o arquivo e o idioma`() {
+        responder = { _, _ -> 200 to """{"text":" abre o YouTube ","language_code":"por"}""".toByteArray() }
+        val texto = VozNatural("chave-eleven", enderecoBase = base).transcrever(byteArrayOf(82, 73, 70, 70))
+        assertEquals("abre o YouTube", texto)
+        val pedido = recebidos.single()
+        assertContains(pedido, "POST /v1/speech-to-text | chave-eleven |")
+        assertContains(pedido, "name=\"model_id\"")
+        assertContains(pedido, "scribe_v1")
+        assertContains(pedido, "filename=\"fala.wav\"")
+        assertContains(pedido, "RIFF")
+    }
+
+    @Test
+    fun `escolhe a voz brasileira da conta quando existe`() {
+        val george = VozNatural.Voz("g", "George", "male, british")
+        val rafael = VozNatural.Voz("r", "Rafael", "male, brazilian, pt")
+        val lisboa = VozNatural.Voz("l", "Inês", "female, portuguese")
+        assertEquals("r", VozNatural.vozBrasileira(listOf(george, lisboa, rafael))?.id)
+        assertEquals("l", VozNatural.vozBrasileira(listOf(george, lisboa))?.id)
+        assertNull(VozNatural.vozBrasileira(listOf(george)))
+    }
 }

@@ -95,6 +95,27 @@ object Caixa {
             recados.add(recado)
             while (recados.size > MAXIMO) recados.removeAt(0)
         }
+        avisarSeForMensagem(contexto, n, recado)
+    }
+
+    private val ultimoAviso = HashMap<String, Long>()
+
+    /**
+     * Com a opção ligada, o Jarvis fala quem mandou mensagem (sem ler o conteúdo). Vale para
+     * conversas (não e-mails nem avisos de apps), no máximo uma vez a cada dois minutos por conversa.
+     */
+    private fun avisarSeForMensagem(contexto: Context, n: Notification, recado: Recado) {
+        val ehConversa = n.category == Notification.CATEGORY_MESSAGE || recado.ehWhatsApp || recado.resposta != null
+        if (!ehConversa || recado.ehEmail || recado.conversa.isEmpty()) return
+        if (System.currentTimeMillis() - recado.quando > 60_000) return
+        if (!Preferencias(contexto).avisarMensagens) return
+        val chave = recado.pacote + "|" + recado.conversa
+        synchronized(ultimoAviso) {
+            val agora = System.currentTimeMillis()
+            if (agora - (ultimoAviso[chave] ?: 0L) < 120_000) return
+            ultimoAviso[chave] = agora
+        }
+        JarvisService.anunciar(contexto, "Mestre, mensagem de ${recado.conversa} no ${recado.app}.")
     }
 
     /** As mais recentes primeiro. [origem]: "whatsapp", "email" ou "todas". */

@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import br.jarvis.core.Agente
 import br.jarvis.core.Diario
+import br.jarvis.core.Gasto
 import br.jarvis.core.Instrucoes
 import br.jarvis.core.Memoria
 import java.io.File
@@ -23,6 +24,8 @@ class Cerebro(
     interrompido: () -> Boolean = { false },
 ) {
     private val memoria = Memoria(File(contexto.applicationContext.filesDir, "memoria.txt"))
+    private val preferencias = Preferencias(contexto.applicationContext)
+    private val gasto = gastoDe(contexto)
     private val diario = Diario(File(contexto.applicationContext.filesDir, "diario.txt"))
     private val aparelho = FerramentasDoAparelho(contexto.applicationContext, executor)
 
@@ -37,6 +40,8 @@ class Cerebro(
             diario.registrar(SimpleDateFormat("EEE d/MM/yyyy HH:mm", Locale("pt", "BR")).format(Date()), fala, resposta)
         },
         interrompido = interrompido,
+        aoGastar = { entrada, saida -> gasto.registrar(entrada, saida) },
+        podeGastar = { gasto.dentroDoLimite(preferencias.limiteDiario.toDouble()) },
         registrar = { mensagem, erro ->
             Log.e("Jarvis", mensagem, erro)
             // Aparece na tela: sem isso, só daria para saber o motivo ligando o celular a um computador.
@@ -46,6 +51,15 @@ class Cerebro(
 
     /** O Jarvis perguntou "posso enviar?" e espera a resposta: a próxima fala deve vir para cá. */
     val aguardandoConfirmacao: Boolean get() = agente.aguardandoConfirmacao
+
+    companion object {
+        /** A conta do dia, compartilhada entre a inteligência e a tela. */
+        fun gastoDe(contexto: Context) = Gasto(File(contexto.applicationContext.filesDir, "gasto.txt"), {
+            SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        })
+
+        fun diarioDe(contexto: Context) = Diario(File(contexto.applicationContext.filesDir, "diario.txt"))
+    }
 
     /** Devolve o que o Jarvis deve falar em resposta. */
     fun perguntar(pergunta: String): String = try {

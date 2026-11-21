@@ -37,7 +37,7 @@ class AgenteTest {
     fun descer() = servidor.stop(0)
 
     private fun mensagem(parada: String, vararg blocos: String) =
-        """{"id":"msg_1","type":"message","role":"assistant","model":"claude-sonnet-5-5","content":[${blocos.joinToString(",")}],""" +
+        """{"id":"msg_1","type":"message","role":"assistant","model":"claude-haiku-5-5","content":[${blocos.joinToString(",")}],""" +
             """"stop_reason":"$parada","stop_sequence":null,"usage":{"input_tokens":10,"output_tokens":5}}"""
 
     private fun texto(t: String) = """{"type":"text","text":"$t"}"""
@@ -85,9 +85,11 @@ class AgenteTest {
         assertContains(pedidos[1], "tudo bem?")
         assertContains(pedidos[1], "Tudo certo.")
         // E todo pedido declara o modelo, as ferramentas e a rede de segurança contra recusas.
-        assertContains(pedidos[0], "\"model\":\"claude-sonnet-5-5\"")
+        assertContains(pedidos[0], "\"model\":\"claude-haiku-5-5\"")
         assertContains(pedidos[0], "\"name\":\"agenda_ver\"")
-        assertContains(pedidos[0], "\"fallbacks\":\"default\"")
+        // O Haiku não tem reserva contra recusas: mandar o parâmetro seria rejeitado.
+        assertFalse(pedidos[0].contains("fallbacks"))
+        assertContains(pedidos[0], "web_search_20250305")
         assertContains(pedidos[0], "\"effort\":\"low\"")
     }
 
@@ -268,6 +270,26 @@ class AgenteTest {
 
         assertEquals("Interrompido, mestre.", a.ouvir("faça uma tarefa longa"))
         assertEquals(1, pedidos.size, "depois do primeiro passo ele não chama mais o modelo")
+    }
+
+    @Test
+    fun `gasto e contado a cada resposta e o limite barra o pedido seguinte`() {
+        respostas.add(mensagem("end_turn", texto("Olá.")))
+        var entrada = 0L
+        var saida = 0L
+        var liberado = true
+        val a = Agente(
+            "chave", emptyList(), { "x" }, enderecoDaApi = "http://127.0.0.1:${servidor.address.port}",
+            aoGastar = { e, s -> entrada += e; saida += s }, podeGastar = { liberado },
+        )
+
+        assertEquals("Olá.", a.ouvir("oi"))
+        assertEquals(10L, entrada)
+        assertEquals(5L, saida)
+
+        liberado = false
+        assertContains(a.ouvir("oi de novo"), "limite de gasto de hoje")
+        assertEquals(1, pedidos.size, "com o limite atingido, nada é enviado ao modelo")
     }
 
     @Test

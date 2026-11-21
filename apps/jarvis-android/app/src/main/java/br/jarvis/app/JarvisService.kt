@@ -1,5 +1,12 @@
 package br.jarvis.app
 
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.CountDownLatch
+import br.jarvis.core.Fala
+import br.jarvis.core.CapturaDeFala
+import android.provider.CalendarContract
+import android.content.ContentUris
 import android.content.BroadcastReceiver
 import android.content.IntentFilter
 import android.graphics.Bitmap
@@ -87,6 +94,9 @@ class JarvisService : Service() {
     private var trava: PowerManager.WakeLock? = null
     private var notificacaoFixa: Notification? = null
     private var tocador: MediaPlayer? = null
+    /** Muda a cada fala nova, para uma fala antiga parar de tocar os trechos que faltavam. */
+    @Volatile private var falaAtual = 0
+    private val compromissosAvisados = HashSet<String>()
     private val vigiaDaBateria = VigiaDaBateria()
     private val aoMudarBateria = object : BroadcastReceiver() {
         override fun onReceive(contexto: Context, intent: Intent) {
@@ -121,6 +131,7 @@ class JarvisService : Service() {
         instancia = this
         preferencias.ativo = true
         registerReceiver(aoMudarBateria, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        principal.postDelayed(::conferirCompromissos, 60_000)
         Estado.mudar { fase = Fase.CARREGANDO; ouvido = ""; resposta = ""; aviso = "" }
 
         trava = getSystemService(PowerManager::class.java)
@@ -285,6 +296,7 @@ class JarvisService : Service() {
         var gravador: AudioRecord? = null
         var reconhecedorDeFundo: Recognizer? = null
         var ativou = false
+        var falaDireta: ByteArray? = null
         try {
             val minimo = AudioRecord.getMinBufferSize(TAXA, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
             gravador = AudioRecord(
@@ -298,6 +310,9 @@ class JarvisService : Service() {
             val detector = DetectorPalmas(TAXA, DetectorPalmas.PALMAS_PARA_ACORDAR, limiar)
             val bloco = ShortArray(TAXA / 10)
             var blocosComNome = 0
+            // O último segundo de áudio: quando o nome é reconhecido, o começo do comando já passou por aqui.
+            val recentes = ArrayDeque<ShortArray>()
+            val capturarComando = !interrupcao && preferencias.chaveVoz.isNotBlank()
 
             gravador.startRecording()
             while (escutando) {
@@ -311,6 +326,10 @@ class JarvisService : Service() {
                     if (v > pico) pico = v else if (-v > pico) pico = -v
                 }
                 Estado.nivel = (pico / 9000f).coerceAtMost(1f)
+                if (capturarComando) {
+                    recentes.addLast(bloco.copyOf(lidas))
+                    if (recentes.size > 10) recentes.removeFirst()
+                }
 
                 if (usarPalmas && detector.processar(bloco, lidas)) {
                     ativou = true
@@ -324,6 +343,18 @@ class JarvisService : Service() {
                 // se mantém por alguns blocos seguidos (evita disparo por um palpite passageiro).
                 blocosComNome = if (PalavraChave.procurar(texto).ativou) blocosComNome + 1 else 0
                 if (blocosComNome >= (if (fimDaFrase) 1 else BLOCOS_PARA_CONFIRMAR)) {
+                    if (capturarComando) {
+                        // "Jarvis, abre o YouTube" numa frase só: segue gravando até a pessoa se calar.
+                        val captura = CapturaDeFala(TAXA, limiarDeFala = 700.0, esperaPorFalaMs = 700)
+                        for (anterior in recentes) captura.comecarCom(anterior, anterior.size)
+                        var estado = CapturaDeFala.Estado.OUVINDO
+                        while (escutando && estado == CapturaDeFala.Estado.OUVINDO) {
+                            val n = gravador.read(bloco, 0, bloco.size)
+                            if (n < 0) break
+                            if (n > 0) estado = captura.alimentar(bloco, n)
+                        }
+                        if (estado == CapturaDeFala.Estado.CONCLUIDA) falaDireta = Fala.wav(captura.audio(), captura.quantidade, TAXA)
+                    }
                     ativou = true
                     break
                 }
@@ -354,7 +385,10 @@ class JarvisService : Service() {
                     pararTarefa = true
                     vibrar()
                     Estado.mudar { resposta = "Parando…" }
-                } else aoAtivar()
+                } else {
+                    val audio = falaDireta
+                    if (audio != null) aoOuvirDeUmaVez(audio) else aoAtivar()
+                }
             }
         }
     }
@@ -414,30 +448,7 @@ class JarvisService : Service() {
             descartarReconhecedor()
             when {
                 !texto.isNullOrBlank() -> {
-                    Estado.mudar { ouvido = texto }
-                    val comando = Interpretador.interpretar(texto)
-                    // Uma confirmação pendente ("posso enviar?") recebe a fala inteira, seja ela qual for.
-                    val confirmando = cerebro?.aguardandoConfirmacao == true
-                    // Só o nome de um app instalado ("YouTube") abre o app, sem passar pela inteligência.
-                    val soNomeDeApp = !confirmando && comando is Comando.Desconhecido &&
-                        texto.trim().split(Regex("\\s+")).size <= 3 && executor.conheceApp(texto)
-                    val esperavaNome = esperandoNomeDeApp
-                    esperandoNomeDeApp = false
-                    when {
-                        // Respondeu à pergunta "qual aplicativo?": a fala inteira é o nome.
-                        esperavaNome && comando !is Comando.Cancelar -> responder(
-                            if (comando is Comando.AbrirApp) comando else Comando.AbrirApp(texto)
-                        )
-                        // Disse só "abrir": pergunta qual app em vez de adivinhar.
-                        comando is Comando.AbrirJarvis && !PalavraChave.procurar(texto).ativou -> {
-                            esperandoNomeDeApp = true
-                            Estado.mudar { resposta = "Qual aplicativo, mestre?" }
-                            falar("Qual aplicativo, mestre?") { ouvirComando(continuacao = true) }
-                        }
-                        soNomeDeApp -> responder(Comando.AbrirApp(texto))
-                        confirmando || Roteador.paraAInteligencia(texto, comando, preferencias.chaveIa.isNotBlank()) -> conversar(texto)
-                        else -> responder(comando)
-                    }
+                    tratarFala(texto)
                 }
                 erro == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS ->
                     falar("Preciso da permissão do microfone.") { iniciarEscuta() }
@@ -506,6 +517,62 @@ class JarvisService : Service() {
         }
     }
 
+    /**
+     * A pessoa disse o nome e o comando juntos. Transcreve o áudio e atende direto, sem o
+     * "Sim, mestre?". Se a transcrição falhar ou vier vazia, cai no fluxo normal.
+     */
+    private fun aoOuvirDeUmaVez(wav: ByteArray) {
+        vibrar()
+        mostrarPainel()
+        Estado.mudar { aviso = ""; ouvido = "…"; resposta = ""; fase = Fase.PENSANDO }
+        val chave = preferencias.chaveVoz
+        thread(name = "jarvis-transcricao") {
+            val texto = try {
+                VozNatural(chave).transcrever(wav)
+            } catch (e: Exception) {
+                Log.e(TAG, "Transcrição falhou", e)
+                ""
+            }
+            principal.post {
+                if (encerrado) return@post
+                val achado = PalavraChave.procurar(texto)
+                val comando = (if (achado.ativou) achado.resto else texto).trim()
+                if (comando.isEmpty()) aoAtivar() else {
+                    Estado.mudar { ouvido = comando }
+                    tratarFala(comando)
+                }
+            }
+        }
+    }
+
+    /** Decide o que fazer com o que a pessoa falou: comando do aparelho, nome de app ou inteligência. */
+    private fun tratarFala(texto: String) {
+        Estado.mudar { ouvido = texto }
+        val comando = Interpretador.interpretar(texto)
+        // Uma confirmação pendente ("posso enviar?") recebe a fala inteira, seja ela qual for.
+        val confirmando = cerebro?.aguardandoConfirmacao == true
+        // Só o nome de um app instalado ("YouTube") abre o app, sem passar pela inteligência.
+        val soNomeDeApp = !confirmando && comando is Comando.Desconhecido &&
+            texto.trim().split(Regex("\\s+")).size <= 3 && executor.conheceApp(texto)
+        val esperavaNome = esperandoNomeDeApp
+        esperandoNomeDeApp = false
+        when {
+            // Respondeu à pergunta "qual aplicativo?": a fala inteira é o nome.
+            esperavaNome && comando !is Comando.Cancelar -> responder(
+                if (comando is Comando.AbrirApp) comando else Comando.AbrirApp(texto)
+            )
+            // Disse só "abrir": pergunta qual app em vez de adivinhar.
+            comando is Comando.AbrirJarvis && !PalavraChave.procurar(texto).ativou -> {
+                esperandoNomeDeApp = true
+                Estado.mudar { resposta = "Qual aplicativo, mestre?" }
+                falar("Qual aplicativo, mestre?") { ouvirComando(continuacao = true) }
+            }
+            soNomeDeApp -> responder(Comando.AbrirApp(texto))
+            confirmando || Roteador.paraAInteligencia(texto, comando, preferencias.chaveIa.isNotBlank()) -> conversar(texto)
+            else -> responder(comando)
+        }
+    }
+
     /** Responde uma fala livre com a inteligência; sem chave configurada, pesquisa na internet. */
     private fun conversar(texto: String) {
         val chave = preferencias.chaveIa
@@ -546,57 +613,86 @@ class JarvisService : Service() {
         if (chave.isBlank()) falarComOAparelho(texto, depois) else falarComVozNatural(chave, texto, depois)
     }
 
-    /** Voz da ElevenLabs. Se o áudio não vier (sem internet, chave recusada), fala com a voz do aparelho. */
+    /**
+     * Voz da ElevenLabs. A resposta é dividida em trechos: o primeiro começa a tocar enquanto os
+     * seguintes ainda estão sendo gerados. Se um trecho falhar (sem internet, chave recusada), o
+     * resto sai pela voz do aparelho.
+     */
     private fun falarComVozNatural(chave: String, texto: String, depois: () -> Unit) {
         val idDaVoz = preferencias.idDaVoz
+        val minhaFala = ++falaAtual
+        val trechos = Fala.dividir(texto)
+        // Cada item é um áudio pronto, ou o texto que sobrou quando a geração falhou; `null` marca o fim.
+        val fila = LinkedBlockingQueue<Pair<File?, String?>>()
         thread(name = "jarvis-voz") {
-            // Frases curtas se repetem ("Sim, mestre?"): guarda o áudio para não pedir, nem pagar, de novo.
-            val guardado = File(cacheDir, "voz-" + (idDaVoz + "|" + texto).hashCode() + ".mp3")
-            val arquivo = if (texto.length <= 80) guardado else File(cacheDir, "voz-atual.mp3")
-            val pronto = try {
-                if (!(texto.length <= 80 && arquivo.length() > 0)) arquivo.writeBytes(VozNatural(chave, idDaVoz).sintetizar(texto))
-                true
-            } catch (e: Exception) {
-                Log.e(TAG, "Voz natural indisponível", e)
-                Estado.mudar { aviso = "Voz natural indisponível: " + (e.message ?: e.javaClass.simpleName) }
-                false
-            }
-            principal.post {
-                if (encerrado) return@post
-                if (!pronto) {
-                    falarComOAparelho(texto, depois)
-                    return@post
-                }
-                var terminou = false
-                fun terminar() {
-                    if (terminou) return
-                    terminou = true
-                    tocador?.release()
-                    tocador = null
-                    if (!encerrado) depois()
-                }
+            for ((i, trecho) in trechos.withIndex()) {
+                if (encerrado || falaAtual != minhaFala) break
+                // Frases curtas se repetem ("Sim, mestre?"): guarda o áudio para não pedir, nem pagar, de novo.
+                val curto = trecho.length <= 80
+                val arquivo = File(cacheDir, if (curto) "voz-" + (idDaVoz + "|" + trecho).hashCode() + ".mp3" else "voz-trecho-$i.mp3")
                 try {
-                    tocador?.release()
-                    tocador = MediaPlayer().apply {
-                        setAudioAttributes(
-                            AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANT)
-                                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build()
-                        )
-                        setDataSource(arquivo.absolutePath)
-                        setOnCompletionListener { terminar() }
-                        setOnErrorListener { _, _, _ -> terminar(); true }
-                        prepare()
-                        start()
-                    }
+                    if (!(curto && arquivo.length() > 0)) arquivo.writeBytes(VozNatural(chave, idDaVoz).sintetizar(trecho))
+                    fila.put(arquivo to null)
                 } catch (e: Exception) {
-                    Log.e(TAG, "Não consegui tocar a voz natural", e)
-                    tocador?.release()
-                    tocador = null
-                    arquivo.delete()
-                    falarComOAparelho(texto, depois)
+                    Log.e(TAG, "Voz natural indisponível", e)
+                    Estado.mudar { aviso = "Voz natural indisponível: " + (e.message ?: e.javaClass.simpleName) }
+                    fila.put(null to trechos.drop(i).joinToString(" "))
+                    return@thread
                 }
+            }
+            fila.put(null to null)
+        }
+        thread(name = "jarvis-fala") {
+            var tocados = 0
+            while (true) {
+                val (arquivo, resto) = fila.take()
+                if (encerrado || falaAtual != minhaFala) return@thread
+                if (arquivo == null) {
+                    principal.post {
+                        if (encerrado || falaAtual != minhaFala) return@post
+                        if (resto != null) falarComOAparelho(resto, depois) else depois()
+                    }
+                    return@thread
+                }
+                if (!tocarEEsperar(arquivo)) {
+                    // O áudio não tocou: o que falta sai pela voz do aparelho.
+                    arquivo.delete()
+                    val falta = trechos.drop(tocados).joinToString(" ")
+                    principal.post {
+                        if (!encerrado && falaAtual == minhaFala) falarComOAparelho(falta, depois)
+                    }
+                    return@thread
+                }
+                tocados++
             }
         }
+    }
+
+    /** Toca um arquivo de áudio e só volta quando ele termina. Devolve `false` se não conseguiu tocar. */
+    private fun tocarEEsperar(arquivo: File): Boolean {
+        val fim = CountDownLatch(1)
+        var tocou = false
+        principal.post {
+            try {
+                tocador?.release()
+                tocador = MediaPlayer().apply {
+                    setAudioAttributes(
+                        AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANT)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build()
+                    )
+                    setDataSource(arquivo.absolutePath)
+                    setOnCompletionListener { tocou = true; fim.countDown() }
+                    setOnErrorListener { _, _, _ -> fim.countDown(); true }
+                    prepare()
+                    start()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Não consegui tocar a voz natural", e)
+                fim.countDown()
+            }
+        }
+        fim.await(90, TimeUnit.SECONDS)
+        return tocou
     }
 
     private fun falarComOAparelho(texto: String, depois: () -> Unit) {
@@ -610,6 +706,41 @@ class JarvisService : Service() {
         if (motor.speak(texto, TextToSpeech.QUEUE_FLUSH, null, id) != TextToSpeech.SUCCESS) falaTerminou(id)
         // Rede de segurança caso o motor de voz nunca avise que terminou.
         principal.postDelayed({ falaTerminou(id) }, 20_000)
+    }
+
+    /** A cada cinco minutos, avisa dos compromissos da agenda que começam em até quinze. */
+    private fun conferirCompromissos() {
+        if (encerrado) return
+        principal.postDelayed(::conferirCompromissos, 5 * 60_000L)
+        if (!preferencias.avisarCompromissos) return
+        if (checkSelfPermission(Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED) return
+        thread(name = "jarvis-agenda") {
+            try {
+                val agora = System.currentTimeMillis()
+                val endereco = CalendarContract.Instances.CONTENT_URI.buildUpon().also {
+                    ContentUris.appendId(it, agora)
+                    ContentUris.appendId(it, agora + 16 * 60_000L)
+                }.build()
+                val colunas = arrayOf(
+                    CalendarContract.Instances.EVENT_ID, CalendarContract.Instances.BEGIN,
+                    CalendarContract.Instances.TITLE, CalendarContract.Instances.ALL_DAY,
+                )
+                contentResolver.query(endereco, colunas, null, null, CalendarContract.Instances.BEGIN + " ASC")?.use { c ->
+                    while (c.moveToNext()) {
+                        val inicio = c.getLong(1)
+                        // Só o que ainda vai começar, e não é de dia inteiro.
+                        if (c.getInt(3) == 1 || inicio <= agora) continue
+                        val marca = c.getLong(0).toString() + "@" + inicio
+                        if (!compromissosAvisados.add(marca)) continue
+                        val minutos = ((inicio - agora) / 60_000L).coerceAtLeast(1)
+                        val titulo = c.getString(2)?.takeIf { it.isNotBlank() } ?: "um compromisso"
+                        principal.post { anunciar("Mestre, em $minutos minutos: $titulo.") }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Não consegui conferir a agenda", e)
+            }
+        }
     }
 
     /** Fala um aviso por conta própria (lembrete, bateria). Se estiver numa conversa, espera ela acabar. */

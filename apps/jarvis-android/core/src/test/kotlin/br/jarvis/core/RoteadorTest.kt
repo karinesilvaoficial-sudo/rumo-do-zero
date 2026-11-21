@@ -47,4 +47,11 @@ class RoteadorTest {
         assertFalse(vai("tocar Legião Urbana no YouTube"))
         assertFalse(vai("tocar Legião Urbana", comIa = false))
     }
+
+    @Test
+    fun `bom dia pede o resumo a inteligencia e ola fica no aparelho`() {
+        assertTrue(vai("bom dia"))
+        assertFalse(vai("olá"))
+        assertFalse(vai("bom dia", comIa = false))
+    }
 }

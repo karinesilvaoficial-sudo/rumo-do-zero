@@ -76,6 +76,21 @@ class Preferencias(contexto: Context) {
         get() = p.getBoolean("ativo", false)
         set(v) = p.edit().putBoolean("ativo", v).apply()
 
+    /** Falar "mensagem de Fulano" quando chega uma mensagem, sem ser chamado. */
+    var avisarMensagens: Boolean
+        get() = p.getBoolean("avisarMensagens", false)
+        set(v) = p.edit().putBoolean("avisarMensagens", v).apply()
+
+    /** Avisar 15 minutos antes de cada compromisso da agenda. */
+    var avisarCompromissos: Boolean
+        get() = p.getBoolean("avisarCompromissos", true)
+        set(v) = p.edit().putBoolean("avisarCompromissos", v).apply()
+
+    /** Teto de gasto por dia com a inteligência, em dólares. Zero é sem limite. */
+    var limiteDiario: Float
+        get() = p.getFloat("limiteDiario", 0.5f)
+        set(v) = p.edit().putFloat("limiteDiario", v.coerceAtLeast(0f)).apply()
+
     /** De 1 (só palmas fortes) a 10 (palmas fracas ou distantes). */
     var sensibilidade: Int
         get() = p.getInt("sensibilidade", 7)
