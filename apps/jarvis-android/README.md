@@ -19,7 +19,7 @@ uma prévia desenhada com as mesmas medidas do app, não uma captura do celular.
 
 ## O que ele entende
 
-Chame ("Jarvis" ou 2 palmas), espere ele responder "Sim?" e diga o comando.
+Chame ("Jarvis" ou 2 palmas), espere ele responder ("Sim, mestre?") e diga o comando.
 
 | Você diz | O que acontece |
 | --- | --- |
@@ -114,7 +114,9 @@ O que saber antes de usar:
 - Escutar o tempo todo gasta bateria.
 - Se o sistema encerrar o app, ele não volta sozinho: é preciso abrir e ativar de novo
   (o Android não permite religar o microfone em segundo plano).
-- Com a tela bloqueada o Jarvis ouve e responde, mas apps abertos ficam atrás do bloqueio.
+- Com a tela bloqueada o Jarvis ouve, aparece e responde. Para abrir outro app, ele pede o
+  desbloqueio (senha ou digital) e abre em seguida; sem senha no celular, abre direto.
+  O Android não permite abrir outros apps por cima de um bloqueio com senha.
 - Sem a chave da inteligência, "Ligar para Maria" só abre o discador.
 - Responder pelo WhatsApp só funciona enquanto a notificação da conversa ainda está na barra.
 - A leitura de mensagens depende de como cada app monta a notificação; em grupos, o nome

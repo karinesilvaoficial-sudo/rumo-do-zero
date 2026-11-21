@@ -17,6 +17,11 @@ object Estado {
     @Volatile var nivel = 0f
     /** A tela do Jarvis está visível? (apps só podem ser abertos livremente nesse caso) */
     @Volatile var telaVisivel = false
+    /**
+     * Tela de outro app que o Jarvis quer abrir mas não pôde, porque o celular está bloqueado.
+     * A tela do Jarvis, que aparece por cima do bloqueio, pede o desbloqueio e então abre.
+     */
+    @Volatile var aAbrir: android.content.Intent? = null
 
     private val principal = Handler(Looper.getMainLooper())
     private val ouvintes = CopyOnWriteArrayList<() -> Unit>()

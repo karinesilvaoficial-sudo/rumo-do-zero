@@ -1,5 +1,6 @@
 package br.jarvis.app
 
+import android.app.KeyguardManager
 import android.app.SearchManager
 import android.content.ActivityNotFoundException
 import android.content.Context
@@ -69,9 +70,9 @@ class Executor(private val contexto: Context) {
                 h < 18 -> "Boa tarde"
                 else -> "Boa noite"
             }
-            Resposta("$periodo. Em que posso ajudar?", Depois.OUVIR_DE_NOVO)
+            Resposta("$periodo, mestre. Em que posso ajudar?", Depois.OUVIR_DE_NOVO)
         }
-        Comando.Agradecimento -> Resposta("Disponha.")
+        Comando.Agradecimento -> Resposta("Disponha, mestre.")
         Comando.Ajuda -> Resposta(
             "Posso abrir aplicativos, dizer as horas, pesquisar na internet, tocar músicas no YouTube, " +
                 "ligar a lanterna, mudar o volume, criar alarmes e temporizadores, e conversar sobre qualquer assunto. " +
@@ -95,8 +96,17 @@ class Executor(private val contexto: Context) {
     /** Existe um app instalado com esse nome? Serve para "YouTube", dito sozinho, abrir o YouTube. */
     fun conheceApp(nome: String): Boolean = acharApp(nome) != null
 
-    private fun acharApp(nome: String): App? {
+    /** Apelidos falados que não se parecem com o nome escrito do app. */
+    private val apelidos = mapOf(
+        "zap" to "whatsapp", "zap zap" to "whatsapp", "zapzap" to "whatsapp", "whats" to "whatsapp", "uatizap" to "whatsapp",
+        "insta" to "instagram", "face" to "facebook", "tik tok" to "tiktok", "you tube" to "youtube",
+        "fotos" to "galeria", "mapa" to "maps", "mapas" to "maps", "email" to "gmail", "e mail" to "gmail",
+        "loja" to "play store", "calculadora" to "calculadora", "relogio" to "relogio",
+    )
+
+    private fun acharApp(nomeFalado: String): App? {
         val apps = listarApps()
+        val nome = apelidos[Texto.normalizar(nomeFalado)] ?: nomeFalado
         val i = Texto.melhorCorrespondencia(nome, apps.map { it.nome })
         return if (i >= 0) apps[i] else null
     }
@@ -121,7 +131,7 @@ class Executor(private val contexto: Context) {
         }
         val generico = atalho(nome)
         if (generico != null) return abrir(generico) ?: Resposta("Abrindo $nome.")
-        return Resposta("Não encontrei o aplicativo $nome.")
+        return Resposta("Não encontrei o aplicativo $nome, mestre.")
     }
 
     /**
@@ -132,6 +142,23 @@ class Executor(private val contexto: Context) {
         if (!Estado.telaVisivel && !Settings.canDrawOverlays(contexto)) {
             Estado.mudar { aviso = "Para abrir apps com o Jarvis em segundo plano, toque em “Permitir aparecer na tela e abrir apps”." }
             return Resposta("Preciso da permissão para abrir aplicativos em segundo plano. Abra o Jarvis e toque no botão de permissão.")
+        }
+        // Com o celular bloqueado, o Android só mostra por cima do bloqueio a tela do próprio Jarvis.
+        // Ela pede o desbloqueio e abre o app em seguida (ver MainActivity.abrirPendente).
+        val guarda = contexto.getSystemService(KeyguardManager::class.java)
+        if (guarda != null && guarda.isKeyguardLocked) {
+            Estado.mudar { aAbrir = intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+            if (!Estado.telaVisivel) {
+                try {
+                    contexto.startActivity(
+                        Intent(contexto, MainActivity::class.java)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                    )
+                } catch (e: Exception) {
+                    return Resposta("O sistema não me deixou aparecer com o celular bloqueado.")
+                }
+            }
+            return if (guarda.isDeviceSecure) Resposta("Desbloqueie o celular, mestre, que eu abro em seguida.") else null
         }
         return try {
             contexto.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))

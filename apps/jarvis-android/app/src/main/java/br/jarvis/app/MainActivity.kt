@@ -3,6 +3,7 @@ package br.jarvis.app
 import android.Manifest
 import android.animation.ValueAnimator
 import android.app.Activity
+import android.app.KeyguardManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -37,6 +38,7 @@ class MainActivity : Activity() {
     private var faseAnterior = Fase.PARADO
     private var digitacao: ValueAnimator? = null
     private var respostaMostrada = ""
+    private var pedindoDesbloqueio = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -173,7 +175,44 @@ class MainActivity : Activity() {
         }
     }
 
+    /** Abre o app que ficou esperando o desbloqueio do celular (ver Executor.abrir). */
+    private fun abrirPendente() {
+        val pendente = Estado.aAbrir ?: return
+        val guarda = getSystemService(KeyguardManager::class.java)
+        fun abrirAgora() {
+            val intent = Estado.aAbrir ?: return
+            Estado.aAbrir = null
+            try {
+                startActivity(intent)
+            } catch (e: Exception) {
+                Estado.mudar { aviso = "Não consegui abrir o aplicativo depois do desbloqueio." }
+            }
+        }
+        if (!guarda.isKeyguardLocked) {
+            abrirAgora()
+            return
+        }
+        if (pedindoDesbloqueio) return
+        pedindoDesbloqueio = true
+        // Sem senha, o bloqueio some sozinho; com senha ou digital, o Android pede e só então continua.
+        guarda.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
+            override fun onDismissSucceeded() {
+                pedindoDesbloqueio = false
+                abrirAgora()
+            }
+            override fun onDismissCancelled() {
+                pedindoDesbloqueio = false
+                Estado.aAbrir = null
+            }
+            override fun onDismissError() {
+                pedindoDesbloqueio = false
+                Estado.aAbrir = null
+            }
+        })
+    }
+
     private fun atualizar() {
+        abrirPendente()
         val fase = Estado.fase
         reator.fase = fase
         // Saiu de "aguardando" para ouvir ou falar: foi chamado.

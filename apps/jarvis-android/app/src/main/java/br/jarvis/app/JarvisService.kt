@@ -64,6 +64,8 @@ class JarvisService : Service() {
 
     private var reconhecedor: SpeechRecognizer? = null
     private var cerebro: Cerebro? = null
+    private var esperandoNomeDeApp = false
+    private var avisouDaPermissao = false
     private var trava: PowerManager.WakeLock? = null
 
     @Volatile private var escutando = false
@@ -295,7 +297,14 @@ class JarvisService : Service() {
         vibrar()
         mostrarPainel()
         Estado.mudar { aviso = ""; ouvido = ""; resposta = "" }
-        falar("Sim?") { ouvirComando() }
+        // Sem a permissão de aparecer, o aviso ficaria numa tela que ninguém está vendo: fala uma vez.
+        val semPermissao = !Estado.telaVisivel && !Settings.canDrawOverlays(this)
+        val saudacao = if (semPermissao && !avisouDaPermissao) {
+            avisouDaPermissao = true
+            "Sim, mestre? Para eu aparecer na tela e abrir aplicativos, abra o Jarvis e toque em permitir aparecer na tela."
+        } else SAUDACOES.random()
+        Estado.mudar { resposta = saudacao }
+        falar(saudacao) { ouvirComando() }
     }
 
     /** Traz a tela do Jarvis para a frente (acende a tela e aparece sobre o bloqueio). */
@@ -343,7 +352,19 @@ class JarvisService : Service() {
                     // Só o nome de um app instalado ("YouTube") abre o app, sem passar pela inteligência.
                     val soNomeDeApp = !confirmando && comando is Comando.Desconhecido &&
                         texto.trim().split(Regex("\\s+")).size <= 3 && executor.conheceApp(texto)
+                    val esperavaNome = esperandoNomeDeApp
+                    esperandoNomeDeApp = false
                     when {
+                        // Respondeu à pergunta "qual aplicativo?": a fala inteira é o nome.
+                        esperavaNome && comando !is Comando.Cancelar -> responder(
+                            if (comando is Comando.AbrirApp) comando else Comando.AbrirApp(texto)
+                        )
+                        // Disse só "abrir": pergunta qual app em vez de adivinhar.
+                        comando is Comando.AbrirJarvis && !PalavraChave.procurar(texto).ativou -> {
+                            esperandoNomeDeApp = true
+                            Estado.mudar { resposta = "Qual aplicativo, mestre?" }
+                            falar("Qual aplicativo, mestre?") { ouvirComando(continuacao = true) }
+                        }
                         soNomeDeApp -> responder(Comando.AbrirApp(texto))
                         confirmando || Roteador.paraAInteligencia(texto, comando, preferencias.chaveIa.isNotBlank()) -> conversar(texto)
                         else -> responder(comando)
@@ -462,6 +483,7 @@ class JarvisService : Service() {
     }
 
     companion object {
+        private val SAUDACOES = listOf("Sim, mestre?", "Às ordens, mestre.", "Pois não, mestre?", "Estou ouvindo, mestre.")
         private const val TAG = "Jarvis"
         private const val CANAL = "jarvis"
         private const val ID_NOTIFICACAO = 1
