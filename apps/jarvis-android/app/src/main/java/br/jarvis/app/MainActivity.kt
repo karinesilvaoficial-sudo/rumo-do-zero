@@ -1,5 +1,8 @@
 package br.jarvis.app
 
+import kotlin.concurrent.thread
+import br.jarvis.core.VozNatural
+import android.app.AlertDialog
 import android.Manifest
 import android.animation.ValueAnimator
 import android.app.Activity
@@ -32,6 +35,7 @@ class MainActivity : Activity() {
     private lateinit var botaoBateria: Button
     private lateinit var botaoAgenda: Button
     private lateinit var botaoMensagens: Button
+    private lateinit var botaoTela: Button
     private lateinit var rotuloSensibilidade: TextView
 
     private val aoMudar: () -> Unit = { atualizar() }
@@ -61,6 +65,7 @@ class MainActivity : Activity() {
         botaoBateria = findViewById(R.id.botaoBateria)
         botaoAgenda = findViewById(R.id.botaoAgenda)
         botaoMensagens = findViewById(R.id.botaoMensagens)
+        botaoTela = findViewById(R.id.botaoTela)
         rotuloSensibilidade = findViewById(R.id.rotuloSensibilidade)
 
         botaoPrincipal.setOnClickListener {
@@ -125,6 +130,37 @@ class MainActivity : Activity() {
             esconderTeclado(campoChaveVoz)
             mostrarEstadoDaVoz()
         }
+        findViewById<Button>(R.id.botaoEscolherVoz).setOnClickListener {
+            val chave = campoChaveVoz.text.toString().trim().ifEmpty { preferencias.chaveVoz }
+            if (chave.isEmpty()) {
+                estadoVoz.setText(R.string.voz_sem_chave)
+                return@setOnClickListener
+            }
+            estadoVoz.setText(R.string.voz_buscando)
+            thread(name = "jarvis-vozes") {
+                val resultado = runCatching { VozNatural(chave).listarVozes() }
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    val vozes = resultado.getOrNull()
+                    if (vozes.isNullOrEmpty()) {
+                        estadoVoz.text = resultado.exceptionOrNull()?.message ?: getString(R.string.voz_nenhuma)
+                        return@runOnUiThread
+                    }
+                    mostrarEstadoDaVoz()
+                    val nomes = vozes.map { if (it.descricao.isEmpty()) it.nome else "${it.nome} (${it.descricao})" }.toTypedArray()
+                    AlertDialog.Builder(this)
+                        .setTitle(R.string.escolher_voz)
+                        .setItems(nomes) { _, qual ->
+                            preferencias.chaveVoz = chave
+                            preferencias.idDaVoz = vozes[qual].id
+                            campoIdDaVoz.setText(vozes[qual].id)
+                            campoChaveVoz.text.clear()
+                            mostrarEstadoDaVoz()
+                        }
+                        .show()
+                }
+            }
+        }
         findViewById<Button>(R.id.botaoApagarVoz).setOnClickListener {
             preferencias.chaveVoz = ""
             mostrarEstadoDaVoz()
@@ -154,6 +190,10 @@ class MainActivity : Activity() {
             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
         }
         botaoAgenda.setOnClickListener { requestPermissions(PERMISSOES_DA_AGENDA, PEDIDO_AGENDA) }
+        botaoTela.setOnClickListener {
+            // O controle da tela é um serviço de acessibilidade: só a pessoa pode ligá-lo, nesta tela do sistema.
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        }
         botaoMensagens.setOnClickListener {
             // O Android só libera a leitura de notificações por esta tela de configurações.
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
@@ -302,6 +342,7 @@ class MainActivity : Activity() {
         val comInteligencia = preferencias.chaveIa.isNotEmpty()
         botaoAgenda.visibility = if (comInteligencia && !temAgenda()) View.VISIBLE else View.GONE
         botaoMensagens.visibility = if (comInteligencia && !Caixa.acessoLiberado(this)) View.VISIBLE else View.GONE
+        botaoTela.visibility = if (comInteligencia && !ControleDeTela.ativado(this)) View.VISIBLE else View.GONE
         val energia = getSystemService(PowerManager::class.java)
         botaoBateria.visibility =
             if (energia.isIgnoringBatteryOptimizations(packageName)) View.GONE else View.VISIBLE

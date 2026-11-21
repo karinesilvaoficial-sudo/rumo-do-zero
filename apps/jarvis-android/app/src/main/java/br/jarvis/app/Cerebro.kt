@@ -15,7 +15,13 @@ import java.util.Locale
  * A parte do Jarvis que pensa: junta a inteligência (o agente, em `core`) com o que ela
  * pode fazer neste celular. Deve ser chamado fora da thread principal.
  */
-class Cerebro(contexto: Context, val chave: String, executor: Executor) {
+class Cerebro(
+    contexto: Context,
+    val chave: String,
+    executor: Executor,
+    /** A pessoa disse "Jarvis" no meio de uma tarefa: é para parar. */
+    interrompido: () -> Boolean = { false },
+) {
     private val memoria = Memoria(File(contexto.applicationContext.filesDir, "memoria.txt"))
     private val diario = Diario(File(contexto.applicationContext.filesDir, "diario.txt"))
     private val aparelho = FerramentasDoAparelho(contexto.applicationContext, executor)
@@ -30,6 +36,7 @@ class Cerebro(contexto: Context, val chave: String, executor: Executor) {
         aoConcluir = { fala, resposta ->
             diario.registrar(SimpleDateFormat("EEE d/MM/yyyy HH:mm", Locale("pt", "BR")).format(Date()), fala, resposta)
         },
+        interrompido = interrompido,
         registrar = { mensagem, erro ->
             Log.e("Jarvis", mensagem, erro)
             // Aparece na tela: sem isso, só daria para saber o motivo ligando o celular a um computador.
@@ -41,5 +48,10 @@ class Cerebro(contexto: Context, val chave: String, executor: Executor) {
     val aguardandoConfirmacao: Boolean get() = agente.aguardandoConfirmacao
 
     /** Devolve o que o Jarvis deve falar em resposta. */
-    fun perguntar(pergunta: String): String = agente.ouvir(pergunta)
+    fun perguntar(pergunta: String): String = try {
+        agente.ouvir(pergunta)
+    } finally {
+        // A tarefa acabou (ou parou para perguntar algo): o aviso de "Jarvis está mexendo na tela" some.
+        ControleDeTela.instancia?.esconderBolha()
+    }
 }

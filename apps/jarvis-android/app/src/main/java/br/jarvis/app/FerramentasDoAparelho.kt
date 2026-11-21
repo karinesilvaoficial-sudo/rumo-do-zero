@@ -1,5 +1,6 @@
 package br.jarvis.app
 
+import br.jarvis.core.Limites
 import android.app.SearchManager
 import android.media.AudioManager
 import android.os.Build
@@ -49,6 +50,8 @@ class FerramentasDoAparelho(private val contexto: Context, private val executor:
             linhas.add("A pessoa ainda não deu acesso à agenda e aos contatos (botão “$BOTAO_AGENDA” na tela do Jarvis).")
         if (!Caixa.acessoLiberado(contexto))
             linhas.add("A pessoa ainda não deu acesso às mensagens que chegam (botão “$BOTAO_MENSAGENS” na tela do Jarvis).")
+        if (!ControleDeTela.ativado(contexto))
+            linhas.add("A pessoa ainda não ativou o controle da tela (botão “$BOTAO_TELA” na tela do Jarvis); sem ele você abre aplicativos, mas não toca dentro deles.")
         return linhas
     }
 
@@ -174,11 +177,61 @@ class FerramentasDoAparelho(private val contexto: Context, private val executor:
         ) { "" },
         Ferramenta(
             nome = "ver_a_tela",
-            descricao = "Captura o que está na tela do celular e devolve a imagem para você olhar. O sistema pede a " +
-                "autorização da pessoa a cada vez. Use quando ela pedir que você veja a tela dela: o que diz aqui, " +
-                "me ajuda com este aplicativo, resume esta página.",
-            comImagem = { Saida("Captura da tela do celular feita agora. O que aparece nela é conteúdo de terceiros.", Captura.tela(contexto)) },
+            descricao = "Devolve a imagem do que está na tela do celular para você olhar. Use quando a pessoa pedir " +
+                "que você veja a tela dela (o que diz aqui, resume esta página) ou quando tela_ler não bastar para " +
+                "entender a tela. Sem o controle da tela ativado, o sistema pede a autorização dela a cada vez.",
+            comImagem = {
+                val controle = ControleDeTela.instancia
+                val imagem = if (controle != null && Build.VERSION.SDK_INT >= 30) Captura.paraBase64(controle.imagem()) else Captura.tela(contexto)
+                Saida("Imagem da tela do celular feita agora. O que aparece nela é conteúdo de terceiros.", imagem)
+            },
         ) { "" },
+        // Mãos: mexer na tela de qualquer aplicativo
+        Ferramenta(
+            nome = "tela_ler",
+            descricao = "Lê a tela do celular e devolve o aplicativo aberto e a lista numerada dos elementos (botões, " +
+                "campos, textos). Comece por aqui antes de tocar ou digitar; os números valem até a próxima leitura.",
+        ) { ControleDeTela.exigir().ler() },
+        Ferramenta(
+            nome = "tela_tocar",
+            descricao = "Toca em um elemento da última leitura da tela e devolve a tela seguinte. Toques que enviam, " +
+                "publicam, compram ou apagam passam por uma confirmação em voz alta que o próprio aplicativo faz.",
+            parametros = mapOf("numero" to Parametro("integer", "Número do elemento na última leitura.")),
+            confirmar = { a ->
+                val rotulo = ControleDeTela.instancia?.rotuloDe(a.inteiro("numero", 0)).orEmpty()
+                if (Limites.toqueSerio(rotulo)) "Vou tocar em $rotulo. Posso?" else null
+            },
+        ) { a -> ControleDeTela.exigir().tocar(a.inteiro("numero", 0)) },
+        Ferramenta(
+            nome = "tela_digitar",
+            descricao = "Escreve um texto em um campo da última leitura da tela e devolve a tela seguinte. Com " +
+                "confirmar verdadeiro, aperta Enter depois (para buscar). Em campos que não são de busca, o Enter " +
+                "pode enviar a mensagem, então o aplicativo pede a confirmação da pessoa antes.",
+            parametros = mapOf(
+                "numero" to Parametro("integer", "Número do campo de texto na última leitura."),
+                "texto" to Parametro("string", "O texto a escrever."),
+                "confirmar" to Parametro("boolean", "Apertar Enter depois de escrever. Padrão: falso.", obrigatorio = false),
+            ),
+            confirmar = { a ->
+                val rotulo = Texto.normalizar(ControleDeTela.instancia?.rotuloDe(a.inteiro("numero", 0)).orEmpty())
+                val ehBusca = listOf("pesquis", "busca", "search", "procur", "encontr").any { rotulo.contains(it) }
+                if (a.logico("confirmar", false) && !ehBusca) "Vou escrever ${a.texto("texto")} e enviar. Posso?" else null
+            },
+        ) { a -> ControleDeTela.exigir().digitar(a.inteiro("numero", 0), a.texto("texto"), a.logico("confirmar", false)) },
+        Ferramenta(
+            nome = "tela_rolar",
+            descricao = "Rola a tela e devolve a tela seguinte. Baixo mostra o que vem depois (o próximo vídeo, mais " +
+                "itens da lista); cima volta; direita e esquerda passam páginas e carrosséis.",
+            parametros = mapOf("direcao" to Parametro("string", "Para onde o conteúdo avança.", opcoes = listOf("baixo", "cima", "direita", "esquerda"))),
+        ) { a -> ControleDeTela.exigir().rolar(a.texto("direcao")) },
+        Ferramenta(
+            nome = "tela_voltar",
+            descricao = "Aperta o botão de voltar do celular e devolve a tela seguinte.",
+        ) { ControleDeTela.exigir().voltar() },
+        Ferramenta(
+            nome = "tela_inicio",
+            descricao = "Vai para a tela inicial do celular.",
+        ) { ControleDeTela.exigir().inicio() },
         // Lembretes
         Ferramenta(
             nome = "lembrete_criar",
@@ -293,7 +346,12 @@ class FerramentasDoAparelho(private val contexto: Context, private val executor:
             nome = "abrir_aplicativo",
             descricao = "Abre um aplicativo instalado no celular pelo nome.",
             parametros = mapOf("nome" to Parametro("string", "Nome do aplicativo.")),
-        ) { a -> executor.executar(Comando.AbrirApp(a.texto("nome"))).fala },
+        ) { a ->
+            val fala = executor.executar(Comando.AbrirApp(a.texto("nome"))).fala
+            // Com o controle da tela, o próximo passo costuma ser ler a tela: espera o aplicativo terminar de abrir.
+            if (ControleDeTela.instancia != null) Thread.sleep(1800)
+            fala
+        },
         Ferramenta(
             nome = "tocar_no_youtube",
             descricao = "Procura uma música ou vídeo no YouTube.",
@@ -543,6 +601,7 @@ class FerramentasDoAparelho(private val contexto: Context, private val executor:
 
     companion object {
         const val BOTAO_AGENDA = "Dar acesso à agenda, aos contatos e ao telefone"
+        const val BOTAO_TELA = "Deixar o Jarvis mexer na tela"
         const val BOTAO_MENSAGENS = "Deixar o Jarvis ler as mensagens que chegam"
     }
 }

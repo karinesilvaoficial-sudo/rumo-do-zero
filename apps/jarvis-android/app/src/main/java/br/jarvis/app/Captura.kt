@@ -55,7 +55,7 @@ object Captura {
         return paraBase64(imagem)
     }
 
-    private fun paraBase64(original: Bitmap): String {
+    internal fun paraBase64(original: Bitmap): String {
         val maior = maxOf(original.width, original.height)
         val imagem = if (maior <= LADO_MAXIMO) original else {
             val fator = LADO_MAXIMO.toFloat() / maior

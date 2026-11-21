@@ -82,6 +82,7 @@ class JarvisService : Service() {
     private var reconhecedor: SpeechRecognizer? = null
     private var cerebro: Cerebro? = null
     private var esperandoNomeDeApp = false
+    @Volatile private var pararTarefa = false
     private var avisouDaPermissao = false
     private var trava: PowerManager.WakeLock? = null
     private var notificacaoFixa: Notification? = null
@@ -241,6 +242,18 @@ class JarvisService : Service() {
 
     // ---------------------------------------------------------------- escuta de fundo
 
+    /**
+     * Enquanto o Jarvis executa uma tarefa, continua ouvindo só o nome: dizer "Jarvis" de novo
+     * manda parar. As palmas ficam de fora, porque o som de um vídeo dispararia à toa.
+     */
+    private fun iniciarEscutaDeInterrupcao() {
+        val modeloDeVoz = modelo
+        if (encerrado || escutando || !preferencias.voz || modeloDeVoz == null) return
+        escutando = true
+        val minhaGeracao = ++geracao
+        fio = thread(name = "jarvis-interrupcao") { lacoDeEscuta(minhaGeracao, false, modeloDeVoz, 0.0, interrupcao = true) }
+    }
+
     private fun iniciarEscuta() {
         if (encerrado || escutando) return
         if (!preferencias.voz && !preferencias.palmas) {
@@ -266,7 +279,9 @@ class JarvisService : Service() {
     }
 
     /** Lê o microfone até ouvir "Jarvis" ou a sequência de palmas. Roda fora da thread principal. */
-    private fun lacoDeEscuta(minhaGeracao: Int, usarPalmas: Boolean, modeloDeVoz: Model?, limiar: Double) {
+    private fun lacoDeEscuta(
+        minhaGeracao: Int, usarPalmas: Boolean, modeloDeVoz: Model?, limiar: Double, interrupcao: Boolean = false,
+    ) {
         var gravador: AudioRecord? = null
         var reconhecedorDeFundo: Recognizer? = null
         var ativou = false
@@ -318,6 +333,8 @@ class JarvisService : Service() {
             principal.post {
                 if (minhaGeracao != geracao || encerrado) return@post
                 escutando = false
+                // No meio de uma tarefa o microfone é só um extra: sem ele, a tarefa segue.
+                if (interrupcao) return@post
                 Estado.mudar { aviso = "Não consegui usar o microfone. Outro app pode estar usando." }
                 // Tenta de novo daqui a pouco (por exemplo, depois de uma ligação).
                 principal.postDelayed({ if (Estado.fase == Fase.AGUARDANDO) iniciarEscuta() }, 5000)
@@ -333,7 +350,11 @@ class JarvisService : Service() {
                 if (minhaGeracao != geracao || encerrado) return@post
                 escutando = false
                 fio = null
-                aoAtivar()
+                if (interrupcao) {
+                    pararTarefa = true
+                    vibrar()
+                    Estado.mudar { resposta = "Parando…" }
+                } else aoAtivar()
             }
         }
     }
@@ -493,12 +514,16 @@ class JarvisService : Service() {
             responder(Comando.Pesquisar(texto))
             return
         }
-        val mente = cerebro?.takeIf { it.chave == chave } ?: Cerebro(this, chave, executor).also { cerebro = it }
+        val mente = cerebro?.takeIf { it.chave == chave }
+            ?: Cerebro(this, chave, executor, interrompido = { pararTarefa }).also { cerebro = it }
         Estado.mudar { fase = Fase.PENSANDO; resposta = "" }
+        pararTarefa = false
+        iniciarEscutaDeInterrupcao()
         thread(name = "jarvis-conversa") {
             val dito = mente.perguntar(texto)
             principal.post {
                 if (encerrado) return@post
+                pararEscuta()
                 Estado.mudar { resposta = dito }
                 // Só segue ouvindo se o Jarvis perguntou algo (ou espera um "sim"); senão volta a aguardar o nome.
                 falar(dito) {

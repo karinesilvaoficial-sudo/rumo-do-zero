@@ -234,6 +234,17 @@
                 android:textSize="15sp" />
 
             <Button
+                android:id="@+id/botaoEscolherVoz"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/botao_secundario"
+                android:text="@string/escolher_voz"
+                android:textAllCaps="false"
+                android:textColor="@color/ciano"
+                android:textSize="15sp" />
+
+            <Button
                 android:id="@+id/botaoApagarVoz"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
@@ -357,6 +368,18 @@
             android:layout_marginTop="10dp"
             android:background="@drawable/botao_secundario"
             android:text="@string/permitir_mensagens"
+            android:textAllCaps="false"
+            android:textColor="@color/alerta"
+            android:textSize="15sp"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/botaoTela"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/botao_secundario"
+            android:text="@string/permitir_tela"
             android:textAllCaps="false"
             android:textColor="@color/alerta"
             android:textSize="15sp"

@@ -49,6 +49,8 @@ Chame ("Jarvis" ou 2 palmas), espere ele responder ("Sim, mestre?") e diga o com
 | "Pausa a música" / "Toca Legião Urbana" | Controla o que está tocando ou toca no app de música |
 | "Liga o Wi-Fi" | Abre o painel do Wi-Fi para você tocar (o Android não deixa apps mudarem sozinhos) |
 | "Quanto vendi hoje?" | Consulta as vendas na Cakto |
+| "Abre o YouTube e coloca o primeiro vídeo" | Abre o app, lê a tela e toca por você, em vários passos |
+| "Jarvis" (no meio de uma tarefa) | Para o que estiver fazendo |
 
 As linhas a partir de "O que tenho na agenda" precisam da chave da inteligência.
 
@@ -105,6 +107,28 @@ O que saber antes de usar:
 - **Memória**: o que você manda lembrar fica em um arquivo no aparelho e é apagado
   se você desinstalar o app ou disser "esquece que…".
 - O número de WhatsApp sem código de país é tratado como brasileiro (+55).
+
+## Mexer na tela (acessibilidade)
+
+Com o botão **Deixar o Jarvis mexer na tela**, você ativa o Jarvis em Configurações >
+Acessibilidade e ele passa a ler a tela de qualquer aplicativo e a tocar, digitar e rolar
+por você. Em Android 13 ou mais novo, vale o mesmo desbloqueio de "configurações restritas"
+descrito acima.
+
+Essa é a permissão mais forte que um app pode ter: ele enxerga tudo o que aparece na tela.
+Por isso os limites estão no código (`core/Limites.kt`), e não nas instruções da inteligência:
+
+- **Bancos, carteiras e pagamentos**: ele não lê nem toca. A lista cobre os apps mais usados
+  no Brasil e qualquer app com "banco", "bank", "wallet" ou "pagamento" no nome; um app de
+  banco pouco conhecido pode escapar dela.
+- **Senhas**: campos de senha não aparecem para ele e não podem ser preenchidos.
+- **Ações sérias**: tocar em Enviar, Publicar, Compartilhar, Comprar, Pagar, Excluir e
+  parecidos só acontece depois do seu "sim". Curtir, seguir e rolar não perguntam. Um botão
+  que é só um ícone sem nome não é reconhecido como sério.
+- **Parar**: diga "Jarvis" no meio de uma tarefa. Uma faixa no topo mostra o passo atual.
+
+O que ele lê da tela é enviado à Anthropic para decidir o próximo toque. Cada passo é uma
+consulta à inteligência, então tarefas longas custam mais.
 
 ## Chaves opcionais
 

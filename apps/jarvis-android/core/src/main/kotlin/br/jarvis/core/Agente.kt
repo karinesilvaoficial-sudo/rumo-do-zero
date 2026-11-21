@@ -39,6 +39,8 @@ class Agente(
     private val relogio: () -> Long = System::currentTimeMillis,
     /** Chamado ao fim de cada pedido atendido, com o que a pessoa disse e o que o Jarvis respondeu. */
     private val aoConcluir: (fala: String, resposta: String) -> Unit = { _, _ -> },
+    /** A pessoa mandou parar? Consultado entre um passo e outro de uma tarefa longa. */
+    private val interrompido: () -> Boolean = { false },
 ) {
     private val cliente: AnthropicClient = AnthropicOkHttpClient.builder()
         .apiKey(chave)
@@ -67,6 +69,7 @@ class Agente(
         /** Resultados das outras ferramentas pedidas na mesma resposta, já executadas. */
         val prontos: List<BetaContentBlockParam>,
         val desde: Long,
+        val pergunta: String,
     )
 
     @Volatile
@@ -116,6 +119,7 @@ class Agente(
     /** Conversa com o modelo e executa ferramentas até sair uma resposta ou uma pergunta de confirmação. */
     private fun rodar(): String {
         repeat(MAXIMO_DE_PASSOS) {
+            if (interrompido()) return abandonar("Interrompido, mestre.")
             val resposta = cliente.beta().messages().create(montarPedido())
             val parada = resposta.stopReason().orElse(null)
             if (parada == BetaStopReason.REFUSAL) return abandonar("Com isso eu não posso ajudar.")
@@ -147,17 +151,23 @@ class Agente(
             for (pedido in pedidos) {
                 val ferramenta = porNome[pedido.name()]
                 val argumentos = Argumentos(lerArgumentos(pedido._input()))
+                // A pergunta de confirmação depende dos dados: tocar em "Enviar" pede, tocar em "Buscar" não.
+                val pergunta = if (ferramenta == null) null else try {
+                    ferramenta.confirmar?.invoke(argumentos)
+                } catch (e: Exception) {
+                    null
+                }
                 when {
                     ferramenta == null ->
                         prontos.add(resultado(pedido.id(), "Essa ferramenta não existe.", erro = true))
-                    ferramenta.confirmar == null ->
+                    pergunta == null ->
                         prontos.add(executar(pedido.id(), ferramenta, argumentos))
                     aConfirmar == null ->
-                        aConfirmar = Pendencia(pedido.id(), ferramenta, argumentos, prontos, relogio())
+                        aConfirmar = Pendencia(pedido.id(), ferramenta, argumentos, prontos, relogio(), pergunta)
                     else -> prontos.add(
                         resultado(
                             pedido.id(),
-                            "Só dá para confirmar um envio por vez. Peça este de novo depois que o anterior for resolvido.",
+                            "Só dá para confirmar uma ação por vez. Peça esta de novo depois que a anterior for resolvida.",
                             erro = true,
                         )
                     )
@@ -166,7 +176,7 @@ class Agente(
             val espera = aConfirmar
             if (espera != null) {
                 pendencia = espera
-                return espera.ferramenta.confirmar!!.invoke(espera.argumentos)
+                return espera.pergunta
             }
             mensagens.add(BetaMessageParam.ofUserOfContentBlockParams(prontos))
         }
@@ -178,8 +188,8 @@ class Agente(
         if (Confirmacao.afirmativa(fala)) executar(p.idDoPedido, p.ferramenta, p.argumentos)
         else resultado(
             p.idDoPedido,
-            "A pessoa não confirmou e nada foi enviado. A resposta dela foi: \"$fala\". " +
-                "Se ela pediu uma mudança, chame a ferramenta de novo já com a mudança; se desistiu, apenas confirme que não enviou.",
+            "A pessoa não confirmou e a ação não foi feita. A resposta dela foi: \"$fala\". " +
+                "Se ela pediu uma mudança, chame a ferramenta de novo já com a mudança; se desistiu, apenas confirme que não fez.",
             erro = true,
         )
 
@@ -288,7 +298,7 @@ class Agente(
         const val MODELO = "claude-sonnet-5-5"
         private const val MAXIMO_DE_TROCAS = 8
         /** Idas e vindas com o modelo num mesmo pedido, para um engano não virar um laço sem fim. */
-        private const val MAXIMO_DE_PASSOS = 8
+        private const val MAXIMO_DE_PASSOS = 24
         private const val VALIDADE_DA_CONFIRMACAO_MS = 120_000L
     }
 }

@@ -11,6 +11,13 @@
     <string name="permitir_bateria">Não deixar o sistema pausar o Jarvis</string>
     <string name="permitir_agenda">Dar acesso à agenda, aos contatos e ao telefone</string>
     <string name="permitir_mensagens">Deixar o Jarvis ler as mensagens que chegam</string>
+    <string name="permitir_tela">Deixar o Jarvis mexer na tela</string>
+    <string name="descricao_acessibilidade">Permite que o Jarvis leia o que está na tela e toque, digite e role por você quando você pedir por voz, por exemplo “abrir o YouTube e colocar o primeiro vídeo”. O que ele lê é enviado à inteligência (Anthropic) para decidir o próximo toque. Ele não lê nem toca em aplicativos de banco e pagamento nem em campos de senha, e pergunta antes de enviar, publicar, comprar ou apagar.</string>
+    <string name="resumo_acessibilidade">Toca e digita na tela por você, a seu pedido</string>
+    <string name="escolher_voz">Escolher voz da lista</string>
+    <string name="voz_sem_chave">Cole a chave da ElevenLabs antes de escolher a voz.</string>
+    <string name="voz_buscando">Buscando as vozes da sua conta…</string>
+    <string name="voz_nenhuma">Nenhuma voz encontrada na conta.</string>
     <string name="titulo_ia">Inteligência: conversar e resolver por você</string>
     <string name="explicacao_ia">Para conversar, o Jarvis usa o Claude, da Anthropic. Crie uma chave em console.anthropic.com e cole aqui. O uso é cobrado pela Anthropic na sua conta. Suas perguntas são enviadas para lá e, quando você pede, também os compromissos, contatos e mensagens que o Jarvis consultar. A chave fica só neste aparelho.</string>
     <string name="dica_chave">Chave (começa com sk-ant-)</string>
@@ -18,7 +25,7 @@
     <string name="chave_ausente">Sem chave: perguntas livres viram pesquisa na internet.</string>
     <string name="chave_salva">Chave salva. Para trocar, cole outra; para remover, salve em branco.</string>
     <string name="titulo_voz">Voz natural (ElevenLabs)</string>
-    <string name="explicacao_voz">Com uma chave da ElevenLabs, o Jarvis fala com voz natural. Crie a chave em elevenlabs.io e cole aqui. O uso é cobrado na sua conta de lá, e o texto das respostas é enviado para gerar o áudio. O campo de baixo troca a voz: cole o código de outra voz da ElevenLabs, ou deixe em branco para a voz masculina padrão.</string>
+    <string name="explicacao_voz">Com uma chave da ElevenLabs, o Jarvis fala com voz natural. Crie a chave em elevenlabs.io e cole aqui. O uso é cobrado na sua conta de lá, e o texto das respostas é enviado para gerar o áudio. Toque em “Escolher voz da lista” para ver as vozes da sua conta. Para uma voz brasileira, adicione uma à sua conta na Biblioteca de Vozes do site da ElevenLabs e ela aparece na lista.</string>
     <string name="dica_chave_voz">Chave da ElevenLabs</string>
     <string name="dica_id_voz">Código da voz (opcional)</string>
     <string name="salvar_voz">Salvar voz</string>
@@ -33,7 +40,7 @@
     <string name="cakto_ausente">Sem chaves: o Jarvis não consulta vendas.</string>
     <string name="cakto_salva">Chaves da Cakto salvas. Para remover, salve em branco.</string>
     <string name="titulo_comandos">O que você pode dizer</string>
-    <string name="comandos">“Jarvis, abrir YouTube”\n“Que horas são?” · “Que dia é hoje?”\n“Pesquisar receita de bolo”\n“Tocar Legião Urbana”\n“Ligar a lanterna” · “Desligar a lanterna”\n“Aumentar o volume” · “Silenciar”\n“Timer de 5 minutos”\n“Alarme para 7 e meia”\n“Como está a bateria?”\nQualquer pergunta ou conversa\n“O que tenho na agenda amanhã?”\n“Marca dentista quinta às 15h”\n“Chegou alguma mensagem?”\n“Responde a Ana que chego às 8”\n“Lembra que minha irmã se chama Ana”\n“Me lembra de tomar o remédio às 20h”\n“O que é isso?” (ele abre a câmera)\n“Olha a minha tela”\n“Pausa a música” · “Toca Legião Urbana”\n“Liga para a Maria”\n“Quanto vendi hoje?”\n“Desligar” (para de escutar)</string>
+    <string name="comandos">“Jarvis, abrir YouTube”\n“Que horas são?” · “Que dia é hoje?”\n“Pesquisar receita de bolo”\n“Tocar Legião Urbana”\n“Ligar a lanterna” · “Desligar a lanterna”\n“Aumentar o volume” · “Silenciar”\n“Timer de 5 minutos”\n“Alarme para 7 e meia”\n“Como está a bateria?”\nQualquer pergunta ou conversa\n“O que tenho na agenda amanhã?”\n“Marca dentista quinta às 15h”\n“Chegou alguma mensagem?”\n“Responde a Ana que chego às 8”\n“Lembra que minha irmã se chama Ana”\n“Me lembra de tomar o remédio às 20h”\n“O que é isso?” (ele abre a câmera)\n“Olha a minha tela”\n“Pausa a música” · “Toca Legião Urbana”\n“Liga para a Maria”\n“Quanto vendi hoje?”\n“Abre o YouTube e coloca o primeiro vídeo”\n“Rola o feed” · “Jarvis” (no meio de uma tarefa, para)\n“Desligar” (para de escutar)</string>
     <string name="notificacao_canal">Jarvis escutando</string>
     <string name="notificacao_texto">Diga “Jarvis” ou bata 2 palmas</string>
 </resources>

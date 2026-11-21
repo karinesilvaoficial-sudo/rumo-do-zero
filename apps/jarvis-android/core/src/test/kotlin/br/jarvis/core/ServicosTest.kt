@@ -52,7 +52,7 @@ class ServicosTest {
         assertContains(pedido, "POST /v1/text-to-speech/voz123?output_format=mp3_44100_128")
         assertContains(pedido, "| chave-eleven |")
         assertContains(pedido, "\"text\":\"Sim, mestre?\"")
-        assertContains(pedido, "\"model_id\":\"eleven_flash_v2_5\"")
+        assertContains(pedido, "\"model_id\":\"eleven_multilingual_v2\"")
     }
 
     @Test
@@ -164,5 +164,29 @@ class ServicosTest {
         // Descarregou de novo: os avisos voltam a valer.
         assertNull(v.avaliar(90, false))
         assertEquals("Mestre, a bateria está em 18 por cento.", v.avaliar(18, false))
+    }
+
+    @Test
+    fun `lista as vozes da conta`() {
+        responder = { _, _ ->
+            200 to """{"voices":[{"voice_id":"v1","name":"Rafael","labels":{"gender":"male","accent":"brazilian","language":"pt"}},{"voice_id":"","name":"sem id"},{"voice_id":"v2","name":"Ana"}]}""".toByteArray()
+        }
+        val vozes = VozNatural("chave-eleven", enderecoBase = base).listarVozes()
+        assertEquals(listOf("v1", "v2"), vozes.map { it.id })
+        assertEquals("male, brazilian, pt", vozes[0].descricao)
+        assertContains(recebidos.single(), "GET /v1/voices | chave-eleven |")
+    }
+
+    @Test
+    fun `limites - bancos sao proibidos e toques serios pedem confirmacao`() {
+        for ((pacote, nome) in listOf("com.nu.production" to "Nubank", "com.itau" to "Itaú", "br.com.intermedium" to "Inter", "com.exemplo.app" to "Banco Fulano", "com.acme.wallet" to "Acme", "com.picpay" to "PicPay"))
+            assertTrue(Limites.appProibido(pacote, nome), "$pacote deveria ser bloqueado")
+        for ((pacote, nome) in listOf("com.google.android.youtube" to "YouTube", "com.instagram.android" to "Instagram", "com.whatsapp" to "WhatsApp", "com.zhiliaoapp.musically" to "TikTok", "com.android.chrome" to "Chrome"))
+            assertTrue(!Limites.appProibido(pacote, nome), "$pacote não deveria ser bloqueado")
+
+        for (rotulo in listOf("Enviar", "Publicar", "Comprar agora", "Pagar", "Excluir conversa", "Finalizar pedido", "Send", "Compartilhar"))
+            assertTrue(Limites.toqueSerio(rotulo), rotulo)
+        for (rotulo in listOf("Pesquisar", "Reproduzir", "Início", "Shorts", "Voltar", "", "Enviados", "Compras recentes", "Postagens", "Curtir", "Seguir"))
+            assertTrue(!Limites.toqueSerio(rotulo), rotulo)
     }
 }

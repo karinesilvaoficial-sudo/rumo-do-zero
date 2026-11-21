@@ -189,7 +189,7 @@ class AgenteTest {
         assertEquals(listOf("Ana|Oi"), enviadas)
         // Os três pedidos de ferramenta recebem resultado na mesma mensagem.
         for (id in listOf("toolu_1", "toolu_2", "toolu_3")) assertContains(pedidos[1], "\"tool_use_id\":\"$id\"")
-        assertContains(pedidos[1], "um envio por vez")
+        assertContains(pedidos[1], "uma ação por vez")
     }
 
     @Test
@@ -242,10 +242,39 @@ class AgenteTest {
     }
 
     @Test
+    fun `confirmacao depende dos dados - toque comum roda direto e toque serio pergunta`() {
+        val tocados = ArrayList<String>()
+        val tocar = Ferramenta(
+            "tela_tocar", "Toca.", mapOf("rotulo" to Parametro("string", "Rótulo.")),
+            confirmar = { a -> if (Limites.toqueSerio(a.texto("rotulo"))) "Vou tocar em ${a.texto("rotulo")}. Posso?" else null },
+        ) { a -> tocados.add(a.texto("rotulo")); "Tocado." }
+        respostas.add(mensagem("tool_use", uso("t1", "tela_tocar", """{"rotulo":"Pesquisar"}""")))
+        respostas.add(mensagem("tool_use", uso("t2", "tela_tocar", """{"rotulo":"Enviar"}""")))
+        respostas.add(mensagem("end_turn", texto("Enviado.")))
+        val a = Agente("chave", listOf(tocar), { "x" }, enderecoDaApi = "http://127.0.0.1:${servidor.address.port}")
+
+        assertEquals("Vou tocar em Enviar. Posso?", a.ouvir("manda"))
+        assertEquals(listOf("Pesquisar"), tocados)
+        assertEquals("Enviado.", a.ouvir("sim"))
+        assertEquals(listOf("Pesquisar", "Enviar"), tocados)
+    }
+
+    @Test
+    fun `tarefa longa para quando a pessoa interrompe`() {
+        repeat(10) { respostas.add(mensagem("tool_use", uso("toolu_$it", "agenda_ver", "{}"))) }
+        var parar = false
+        val agenda = Ferramenta("agenda_ver", "Lista.") { parar = true; "ok" }
+        val a = Agente("chave", listOf(agenda), { "x" }, enderecoDaApi = "http://127.0.0.1:${servidor.address.port}", interrompido = { parar })
+
+        assertEquals("Interrompido, mestre.", a.ouvir("faça uma tarefa longa"))
+        assertEquals(1, pedidos.size, "depois do primeiro passo ele não chama mais o modelo")
+    }
+
+    @Test
     fun `laco de ferramentas tem limite`() {
-        repeat(20) { respostas.add(mensagem("tool_use", uso("toolu_$it", "agenda_ver", "{}"))) }
+        repeat(40) { respostas.add(mensagem("tool_use", uso("toolu_$it", "agenda_ver", "{}"))) }
         val fala = agente().ouvir("fique em laço")
         assertEquals("Não consegui concluir isso agora. Tente pedir de outro jeito.", fala)
-        assertEquals(8, pedidos.size)
+        assertEquals(24, pedidos.size)
     }
 }

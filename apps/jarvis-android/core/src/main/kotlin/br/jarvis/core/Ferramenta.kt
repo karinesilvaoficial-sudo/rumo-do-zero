@@ -18,10 +18,11 @@ class Ferramenta(
     /**
      * Para ações que saem do aparelho em nome da pessoa (enviar uma mensagem): devolve a
      * pergunta que o Jarvis faz em voz alta. A ação só roda depois de um "sim" falado.
+     * Devolver `null` significa que, com estes dados, a ação não precisa de confirmação.
      * Quem decide isso é o código, não a inteligência; assim um texto malicioso lido de
      * uma mensagem recebida não consegue enviar nada sozinho.
      */
-    val confirmar: ((Argumentos) -> String)? = null,
+    val confirmar: ((Argumentos) -> String?)? = null,
     /**
      * Para ferramentas que devolvem uma imagem (foto da câmera, captura da tela) para a
      * inteligência olhar. Quando presente, é usado no lugar de [executar].
