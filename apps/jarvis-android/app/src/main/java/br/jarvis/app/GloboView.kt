@@ -37,6 +37,7 @@ class GloboView @JvmOverloads constructor(contexto: Context, attrs: AttributeSet
     private var nivelSuave = 0f
     private var ultimoQuadro = 0L
     private var inicioDaOnda = 0L
+    private var inicioDaEntrada = 0L
     private val animar = ValueAnimator.areAnimatorsEnabled()
 
     init {
@@ -57,6 +58,16 @@ class GloboView @JvmOverloads constructor(contexto: Context, attrs: AttributeSet
             }
         }
         pontos = lista.toFloatArray()
+    }
+
+    /**
+     * Monta o globo diante da pessoa: ele cresce, a grade se desenha, os pontos acendem de um
+     * polo ao outro e uma faixa de luz varre a esfera. É o sinal de que o Jarvis acabou de chegar.
+     */
+    fun entrar() {
+        if (!animar) return
+        inicioDaEntrada = System.nanoTime()
+        invalidate()
     }
 
     /** Dispara a onda que se abre do centro: o Jarvis acabou de ser chamado. */
@@ -81,12 +92,25 @@ class GloboView @JvmOverloads constructor(contexto: Context, attrs: AttributeSet
         if (animar) angulo += dt * velocidade
         nivelSuave += (Estado.nivel - nivelSuave) * 0.25f
 
+        // Progresso da entrada, de 0 a 1, desacelerando no fim.
+        var entrada = 1f
+        if (inicioDaEntrada != 0L) {
+            val bruto = (agora - inicioDaEntrada) / (DURACAO_DA_ENTRADA_MS * 1e6f)
+            if (bruto >= 1f) inicioDaEntrada = 0L else {
+                val falta = 1f - bruto
+                entrada = 1f - falta * falta * falta
+            }
+        }
+        val entrando = inicioDaEntrada != 0L
+        // Durante a entrada o globo gira mais depressa, como quem acabou de ligar.
+        if (animar && entrando) angulo += dt * (1f - entrada) * 6.0
+
         val cx = width / 2f
         val cy = height / 2f
         val base = minOf(width, height) / 2f
         val pulso = if (fase == Fase.OUVINDO || fase == Fase.FALANDO) nivelSuave * 0.06f else 0f
-        val raio = base * (0.72f + pulso)
-        val forca = if (fase == Fase.PARADO) 0.35f else 1f
+        val raio = base * (0.72f + pulso) * (0.55f + 0.45f * entrada)
+        val forca = (if (fase == Fase.PARADO) 0.35f else 1f) * (0.25f + 0.75f * entrada)
 
         // Halo atrás do globo.
         brilho.shader = RadialGradient(
@@ -123,9 +147,26 @@ class GloboView @JvmOverloads constructor(contexto: Context, attrs: AttributeSet
             val y = y0 * cossenoI - z1 * senoI
             val z = y0 * senoI + z1 * cossenoI
             val frente = (z + 1f) / 2f
-            ponto.color = comAlfa((0.12f + 0.88f * frente * frente) * forca)
+            // Na entrada, os pontos acendem do polo norte para o sul; os recém-acesos brilham mais.
+            val limiar = (1f - y0) / 2f
+            val aceso = if (!entrando) 1f else ((entrada * 1.25f - limiar) * 6f).coerceIn(0f, 1f)
+            if (aceso <= 0f) {
+                i += 3
+                continue
+            }
+            val recem = if (!entrando) 0f else (1f - abs(entrada * 1.25f - limiar - 0.08f) * 9f).coerceIn(0f, 1f)
+            ponto.color = comAlfa(((0.12f + 0.88f * frente * frente) * forca * aceso + recem * 0.6f).coerceAtMost(1f))
             canvas.drawCircle(cx + x * raio, cy - y * raio, base * (0.006f + 0.008f * frente), ponto)
             i += 3
+        }
+
+        // Faixa de luz que varre a esfera de cima a baixo durante a entrada.
+        if (entrando) {
+            val yFaixa = cy - raio + 2f * raio * (entrada * 1.25f).coerceAtMost(1f)
+            val meiaLargura = sqrt((raio * raio - (yFaixa - cy) * (yFaixa - cy)).coerceAtLeast(0f).toDouble()).toFloat()
+            linha.color = comAlfa(0.9f * (1f - entrada))
+            linha.strokeWidth = base * 0.018f
+            canvas.drawLine(cx - meiaLargura, yFaixa, cx + meiaLargura, yFaixa, linha)
         }
 
         // Contorno e anel externo.
@@ -135,8 +176,8 @@ class GloboView @JvmOverloads constructor(contexto: Context, attrs: AttributeSet
         linha.color = comAlfa(0.25f * forca)
         linha.strokeWidth = base * 0.008f
         val varredura = ((angulo * 40) % 360).toFloat()
-        canvas.drawArc(cx - base * 0.93f, cy - base * 0.93f, cx + base * 0.93f, cy + base * 0.93f, varredura, 110f, false, linha)
-        canvas.drawArc(cx - base * 0.93f, cy - base * 0.93f, cx + base * 0.93f, cy + base * 0.93f, varredura + 180f, 70f, false, linha)
+        canvas.drawArc(cx - base * 0.93f, cy - base * 0.93f, cx + base * 0.93f, cy + base * 0.93f, varredura, 110f * entrada, false, linha)
+        canvas.drawArc(cx - base * 0.93f, cy - base * 0.93f, cx + base * 0.93f, cy + base * 0.93f, varredura + 180f, 70f * entrada, false, linha)
 
         // Onda ao ser chamado.
         var ondaAtiva = false
@@ -150,7 +191,7 @@ class GloboView @JvmOverloads constructor(contexto: Context, attrs: AttributeSet
             } else inicioDaOnda = 0L
         }
 
-        if (animar && (fase != Fase.PARADO || ondaAtiva) && isAttachedToWindow) postInvalidateOnAnimation()
+        if (animar && (fase != Fase.PARADO || ondaAtiva || entrando) && isAttachedToWindow) postInvalidateOnAnimation()
     }
 
     /** Desenha uma curva fechada da esfera, girada e inclinada, mais clara na frente que atrás. */
@@ -175,6 +216,10 @@ class GloboView @JvmOverloads constructor(contexto: Context, attrs: AttributeSet
             }
             xAnterior = px; yAnterior = py
         }
+    }
+
+    private companion object {
+        const val DURACAO_DA_ENTRADA_MS = 900f
     }
 
     private fun comAlfa(alfa: Float): Int =

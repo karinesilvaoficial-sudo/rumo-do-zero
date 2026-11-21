@@ -110,6 +110,11 @@ O que saber antes de usar:
 
 ## Bolha, modo ao vivo e mensagens novas
 
+- **Entrada animada**: ao ser chamado, o cartão nasce como uma faixa no alto e se abre, o
+  globo se monta (a grade se desenha e os pontos acendem de um polo ao outro) e uma onda de
+  barras acompanha a voz: sobe com o microfone enquanto ele ouve, ondula enquanto pensa e pulsa
+  enquanto fala. Ao sair, o cartão se recolhe para o ponto de onde veio. Com as animações do
+  sistema desligadas, tudo aparece sem movimento.
 - **Bolha**: com o celular desbloqueado, o Jarvis aparece como um cartão pequeno no topo, por
   cima do aplicativo em uso, e some quando volta a aguardar. A tela cheia fica para quando o
   celular está bloqueado ou você abre o app.

@@ -1,5 +1,6 @@
 package br.jarvis.app
 
+import android.view.animation.OvershootInterpolator
 import java.util.Locale
 import kotlin.concurrent.thread
 import br.jarvis.core.VozNatural
@@ -280,6 +281,7 @@ class MainActivity : Activity() {
     override fun onStart() {
         super.onStart()
         Estado.mudar { telaVisivel = true }
+        entrarEmCena()
         Estado.observar(aoMudar)
         atualizar()
     }
@@ -288,6 +290,16 @@ class MainActivity : Activity() {
         Estado.pararDeObservar(aoMudar)
         Estado.mudar { telaVisivel = false }
         super.onStop()
+    }
+
+    /** A tela cheia chega em movimento: o globo se monta e cresce. Os textos já têm a própria transição. */
+    private fun entrarEmCena() {
+        if (!ValueAnimator.areAnimatorsEnabled()) return
+        reator.entrar()
+        reator.scaleX = 0.6f
+        reator.scaleY = 0.6f
+        reator.alpha = 0f
+        reator.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(520).setInterpolator(OvershootInterpolator(1.5f)).start()
     }
 
     /** Mostra quanto a inteligência custou hoje e as últimas conversas. */
