@@ -37,7 +37,7 @@ class AgenteTest {
     fun descer() = servidor.stop(0)
 
     private fun mensagem(parada: String, vararg blocos: String) =
-        """{"id":"msg_1","type":"message","role":"assistant","model":"claude-opus-5-5","content":[${blocos.joinToString(",")}],""" +
+        """{"id":"msg_1","type":"message","role":"assistant","model":"claude-sonnet-5-5","content":[${blocos.joinToString(",")}],""" +
             """"stop_reason":"$parada","stop_sequence":null,"usage":{"input_tokens":10,"output_tokens":5}}"""
 
     private fun texto(t: String) = """{"type":"text","text":"$t"}"""
@@ -85,7 +85,7 @@ class AgenteTest {
         assertContains(pedidos[1], "tudo bem?")
         assertContains(pedidos[1], "Tudo certo.")
         // E todo pedido declara o modelo, as ferramentas e a rede de segurança contra recusas.
-        assertContains(pedidos[0], "\"model\":\"claude-opus-5-5\"")
+        assertContains(pedidos[0], "\"model\":\"claude-sonnet-5-5\"")
         assertContains(pedidos[0], "\"name\":\"agenda_ver\"")
         assertContains(pedidos[0], "\"fallbacks\":\"default\"")
         assertContains(pedidos[0], "\"effort\":\"low\"")

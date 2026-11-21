@@ -257,7 +257,7 @@ class Agente(
     }
 
     companion object {
-        const val MODELO = "claude-opus-5-5"
+        const val MODELO = "claude-sonnet-5-5"
         private const val MAXIMO_DE_TROCAS = 8
         /** Idas e vindas com o modelo num mesmo pedido, para um engano não virar um laço sem fim. */
         private const val MAXIMO_DE_PASSOS = 8
