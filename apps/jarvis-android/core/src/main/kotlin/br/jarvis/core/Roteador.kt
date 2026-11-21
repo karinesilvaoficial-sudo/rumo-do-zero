@@ -15,6 +15,9 @@ object Roteador {
             is Comando.Desconhecido -> true
             // Ligar para um nome exige procurar nos contatos, o que só a inteligência faz.
             is Comando.Ligar -> comando.destino.none { it.isDigit() }
+            // "Abrir o direct do Instagram", "abrir o YouTube e pôr um vídeo": é mais que abrir um app.
+            // Quem abre e continua mexendo dentro dele é a inteligência.
+            is Comando.AbrirApp -> pedeMaisQueAbrir(comando.nome)
             // "Tocar X" sem falar em YouTube: a inteligência toca direto no aplicativo de música.
             is Comando.TocarNoYoutube -> !Texto.normalizar(fala).contains("youtube")
             // "Bom dia" pede o resumo do dia (agenda, mensagens, vendas), que só a inteligência monta.
@@ -24,6 +27,21 @@ object Roteador {
                 Texto.normalizar(fala).split(" ").count { it.isNotEmpty() } > FRASE_CURTA
             else -> false
         }
+    }
+
+    private val ligacoes = setOf(
+        "e", "do", "da", "dos", "das", "de", "no", "na", "nos", "nas", "em", "pra", "para", "com",
+        "depois", "entao", "ai", "que", "onde", "meu", "minha", "primeiro", "primeira", "ultimo", "ultima",
+    )
+
+    /**
+     * O que veio depois de "abrir" é só o nome de um aplicativo, ou um lugar dentro dele e mais
+     * passos? Nomes de app são curtos e não têm palavras de ligação; na dúvida vai para a
+     * inteligência, que também sabe abrir o aplicativo.
+     */
+    fun pedeMaisQueAbrir(nome: String): Boolean {
+        val palavras = Texto.normalizar(nome).split(" ").filter { it.isNotEmpty() }
+        return palavras.size > 3 || palavras.any { it in ligacoes }
     }
 
     /**

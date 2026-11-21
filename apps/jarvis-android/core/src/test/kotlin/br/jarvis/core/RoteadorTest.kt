@@ -62,4 +62,16 @@ class RoteadorTest {
         for (fala in listOf("sair do modo live", "desliga o ao vivo", "parar o live", "encerrar modo ao vivo")) assertEquals(false, Roteador.pedidoDeLive(fala), fala)
         for (fala in listOf("que horas são", "tem algum jogo passando ao vivo hoje na televisão", "abrir youtube")) assertEquals(null, Roteador.pedidoDeLive(fala), fala)
     }
+
+    @Test
+    fun `abrir um lugar dentro do app vai para a inteligencia e abrir so o app fica no aparelho`() {
+        for (fala in listOf(
+            "abra o direct do Instagram", "abrir o YouTube e colocar o primeiro vídeo",
+            "abre a conversa da Ana no WhatsApp", "abrir as configurações de wifi", "abre meu perfil no Instagram",
+        )) assertTrue(vai(fala), fala)
+        for (fala in listOf("abrir Instagram", "abra o YouTube", "abrir play store", "abre o google maps", "abrir WhatsApp"))
+            assertFalse(vai(fala), fala)
+        // Sem inteligência, o aparelho faz o que dá: abre o aplicativo.
+        assertFalse(vai("abra o direct do Instagram", comIa = false))
+    }
 }
