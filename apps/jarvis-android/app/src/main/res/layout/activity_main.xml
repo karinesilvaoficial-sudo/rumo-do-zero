@@ -109,6 +109,14 @@
                 android:textColor="@color/texto"
                 android:textSize="15sp" />
 
+            <Switch
+                android:id="@+id/chaveFraseUnica"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="@string/frase_unica"
+                android:textColor="@color/texto"
+                android:textSize="15sp" />
+
             <TextView
                 android:id="@+id/rotuloSensibilidade"
                 android:layout_width="match_parent"
@@ -188,6 +196,18 @@
             android:layout_marginTop="12dp"
             android:background="@drawable/botao_secundario"
             android:text="@string/permitir_sobrepor"
+            android:textAllCaps="false"
+            android:textColor="@color/alerta"
+            android:textSize="15sp"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/botaoContatos"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/botao_secundario"
+            android:text="@string/permitir_contatos"
             android:textAllCaps="false"
             android:textColor="@color/alerta"
             android:textSize="15sp"

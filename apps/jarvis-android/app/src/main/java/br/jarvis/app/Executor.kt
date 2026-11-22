@@ -1,15 +1,18 @@
 package br.jarvis.app
 
+import android.Manifest
 import android.app.SearchManager
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.media.AudioManager
 import android.net.Uri
 import android.os.BatteryManager
 import android.provider.AlarmClock
+import android.provider.ContactsContract
 import android.provider.MediaStore
 import android.provider.Settings
 import br.jarvis.core.AcaoVolume
@@ -21,7 +24,12 @@ import java.util.Date
 import java.util.Locale
 
 /** O que o Jarvis responde e o que faz depois de falar. */
-data class Resposta(val fala: String, val depois: Depois = Depois.VOLTAR_A_ESCUTAR)
+data class Resposta(
+    val fala: String,
+    val depois: Depois = Depois.VOLTAR_A_ESCUTAR,
+    /** Algo a fazer só depois de falar (por exemplo, iniciar a ligação). */
+    val aoTerminar: (() -> Unit)? = null,
+)
 
 enum class Depois {
     VOLTAR_A_ESCUTAR,
@@ -61,6 +69,7 @@ class Executor(private val contexto: Context) {
         is Comando.Temporizador -> temporizador(comando.segundos)
         is Comando.Alarme -> alarme(comando.hora, comando.minuto)
         is Comando.Ligar -> ligar(comando.destino)
+        is Comando.Mensagem -> mensagem(comando.destino, comando.texto)
         Comando.Saudacao -> {
             val h = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
             val periodo = when {
@@ -74,7 +83,7 @@ class Executor(private val contexto: Context) {
         Comando.Agradecimento -> Resposta("Disponha.")
         Comando.Ajuda -> Resposta(
             "Posso abrir aplicativos, dizer as horas, pesquisar na internet, tocar músicas no YouTube, " +
-                "ligar a lanterna, mudar o volume, criar alarmes e temporizadores, e conversar sobre qualquer assunto.",
+                "ligar a lanterna, mudar o volume, criar alarmes e temporizadores, ligar e mandar mensagens para seus contatos, e conversar sobre qualquer assunto.",
             Depois.OUVIR_DE_NOVO
         )
         Comando.Desligar -> Resposta("Até logo.", Depois.DESLIGAR)
@@ -125,10 +134,7 @@ class Executor(private val contexto: Context) {
      * Fora da tela do Jarvis, o Android só deixa abrir outras telas com a permissão de sobrepor.
      */
     private fun abrir(intent: Intent): Resposta? {
-        if (!Estado.telaVisivel && !Settings.canDrawOverlays(contexto)) {
-            Estado.mudar { aviso = "Para abrir apps com o Jarvis em segundo plano, toque em “Permitir aparecer na tela e abrir apps”." }
-            return Resposta("Preciso da permissão para abrir aplicativos em segundo plano. Abra o Jarvis e toque no botão de permissão.")
-        }
+        bloqueioParaAbrir()?.let { return it }
         return try {
             contexto.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             null
@@ -137,6 +143,13 @@ class Executor(private val contexto: Context) {
         } catch (e: SecurityException) {
             Resposta("O sistema não me deixou abrir isso.")
         }
+    }
+
+    /** Se o Android não vai deixar abrir outra tela agora, devolve a resposta que explica o motivo. */
+    private fun bloqueioParaAbrir(): Resposta? {
+        if (Estado.telaVisivel || Settings.canDrawOverlays(contexto)) return null
+        Estado.mudar { aviso = "Para abrir apps com o Jarvis em segundo plano, toque em “Permitir aparecer na tela e abrir apps”." }
+        return Resposta("Preciso da permissão para abrir aplicativos em segundo plano. Abra o Jarvis e toque no botão de permissão.")
     }
 
     private fun pesquisar(termo: String): Resposta {
@@ -213,14 +226,75 @@ class Executor(private val contexto: Context) {
         return abrir(intent) ?: Resposta("Alarme criado para $horario.")
     }
 
-    private fun ligar(destino: String): Resposta {
-        val numero = destino.filter { it.isDigit() }
-        // Só abre o discador: a ligação em si fica para a pessoa confirmar.
-        return if (numero.length >= 3) {
-            abrir(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$numero"))) ?: Resposta("Número pronto no telefone.")
-        } else {
-            abrir(Intent(Intent.ACTION_DIAL))
-                ?: Resposta("Abri o telefone. Ainda não sei procurar contatos pelo nome.")
+    private data class Contato(val nome: String, val numero: String)
+
+    /** Procura um contato pelo nome falado. Devolve o contato, ou a resposta explicando por que não deu. */
+    private fun acharContato(falado: String): Pair<Contato?, Resposta?> {
+        if (contexto.checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            Estado.mudar { aviso = "Para ligar ou mandar mensagem pelo nome, toque em “Permitir contatos e ligações”." }
+            return null to Resposta("Preciso da permissão de contatos. Abra o Jarvis e toque em permitir contatos e ligações.")
         }
+        val contatos = ArrayList<Contato>()
+        val colunas = arrayOf(
+            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+            ContactsContract.CommonDataKinds.Phone.NUMBER,
+        )
+        contexto.contentResolver.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, colunas, null, null, null)?.use { c ->
+            while (c.moveToNext()) {
+                val nome = c.getString(0) ?: continue
+                val numero = c.getString(1) ?: continue
+                // Cada pessoa entra uma vez, com o primeiro número cadastrado.
+                if (contatos.none { it.nome == nome }) contatos.add(Contato(nome, numero))
+            }
+        }
+        val i = Texto.melhorCorrespondencia(falado, contatos.map { it.nome })
+        return if (i >= 0) contatos[i] to null else null to Resposta("Não encontrei $falado nos seus contatos.")
+    }
+
+    private fun ligar(destino: String): Resposta {
+        val soNumero = destino.none { it.isLetter() } && destino.count { it.isDigit() } >= 3
+        val (nome, numero) = if (soNumero) {
+            "esse número" to destino.filter { it.isDigit() || it == '+' }
+        } else {
+            val (contato, problema) = acharContato(destino)
+            if (contato == null) return problema!!
+            contato.nome to contato.numero
+        }
+        bloqueioParaAbrir()?.let { return it }
+        val endereco = Uri.fromParts("tel", numero, null)
+        val podeLigarDireto =
+            contexto.checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED
+        return if (podeLigarDireto) {
+            // Avisa para quem vai ligar antes de discar, para dar tempo de perceber um engano.
+            Resposta("Ligando para $nome.", aoTerminar = { abrir(Intent(Intent.ACTION_CALL, endereco)) })
+        } else {
+            abrir(Intent(Intent.ACTION_DIAL, endereco)) ?: Resposta("Coloquei o número de $nome no telefone. É só tocar para ligar.")
+        }
+    }
+
+    /** Abre a conversa do WhatsApp com o texto já escrito; o envio fica para a pessoa confirmar. */
+    private fun mensagem(destino: String, texto: String): Resposta {
+        val (contato, problema) = acharContato(destino)
+        if (contato == null) return problema!!
+        var numero = contato.numero.filter { it.isDigit() }.trimStart('0')
+        // Número sem código do país: assume Brasil.
+        if (!contato.numero.trim().startsWith("+") && numero.length <= 11) numero = "55$numero"
+        val endereco = Uri.parse("https://wa.me/$numero" + if (texto.isBlank()) "" else "?text=" + Uri.encode(texto))
+        val temWhatsApp = try {
+            contexto.packageManager.getPackageInfo(WHATSAPP, 0)
+            true
+        } catch (e: PackageManager.NameNotFoundException) {
+            false
+        }
+        val intent = Intent(Intent.ACTION_VIEW, endereco)
+        if (temWhatsApp) intent.setPackage(WHATSAPP)
+        return abrir(intent) ?: Resposta(
+            if (texto.isBlank()) "Abri a conversa com ${contato.nome}."
+            else "Mensagem para ${contato.nome} pronta no WhatsApp. É só tocar em enviar."
+        )
+    }
+
+    companion object {
+        private const val WHATSAPP = "com.whatsapp"
     }
 }

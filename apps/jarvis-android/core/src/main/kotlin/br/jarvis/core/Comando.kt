@@ -16,6 +16,8 @@ sealed class Comando {
     data class Temporizador(val segundos: Int) : Comando()
     data class Alarme(val hora: Int, val minuto: Int) : Comando()
     data class Ligar(val destino: String) : Comando()
+    /** Mensagem de WhatsApp. [texto] mantém a escrita original (acentos, maiúsculas). */
+    data class Mensagem(val destino: String, val texto: String) : Comando()
     data object Saudacao : Comando()
     data object Agradecimento : Comando()
     data object Ajuda : Comando()

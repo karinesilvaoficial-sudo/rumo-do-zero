@@ -31,6 +31,7 @@ object Interpretador {
         if (t in setOf("desligar", "desliga", "desativar", "dormir", "pode dormir", "parar de ouvir", "parar de escutar", "encerrar"))
             return Comando.Desligar
 
+        mensagem(frase)?.let { return it }
         lanterna(t)?.let { return it }
         volume(t)?.let { return it }
         temporizador(palavras)?.let { return it }
@@ -63,6 +64,43 @@ object Interpretador {
         if (t.contains("o que voce") || t.contains("ajuda") || t.contains("comandos")) return Comando.Ajuda
 
         return Comando.Desconhecido(frase.trim())
+    }
+
+    /**
+     * "mandar mensagem para Maria dizendo que chego às oito".
+     * Trabalha com as palavras originais para o texto da mensagem sair como foi falado.
+     */
+    private fun mensagem(frase: String): Comando? {
+        val originais = frase.trim().split(Regex("\\s+"))
+        val n = originais.map { Texto.normalizar(it) }
+        val verbo = n.indexOfFirst { it in setOf("mandar", "manda", "mande", "enviar", "envia", "envie", "escrever", "escreve", "escreva") }
+        if (verbo < 0) return null
+        val meios = setOf("mensagem", "whatsapp", "zap", "recado", "msg")
+        if (n.drop(verbo + 1).take(4).none { it in meios }) return null
+        val para = (verbo + 1..n.lastIndex).firstOrNull { n[it] in setOf("para", "pra", "pro", "ao", "pros", "pras") } ?: return null
+
+        val separadores = setOf("dizendo", "falando", "escrito", "avisando", "perguntando", "que", "assim")
+        val nome = ArrayList<String>()
+        var i = para + 1
+        while (i <= n.lastIndex && n[i] in setOf("o", "a", "os", "as")) i++
+        while (i <= n.lastIndex && nome.size < 3 && n[i] !in separadores && n[i] !in setOf("no", "pelo", "por", "via") && n[i] !in meios) {
+            if (n[i].isNotEmpty()) nome.add(n[i])
+            i++
+        }
+        if (nome.isEmpty()) return null
+        // Pula "no whatsapp" / "pelo zap", se vier depois do nome.
+        while (i <= n.lastIndex && (n[i] in setOf("no", "pelo", "por", "via") || n[i] in meios)) i++
+
+        val temSeparador = i <= n.lastIndex && n[i] in separadores
+        if (!temSeparador && nome.size > 1) {
+            // Sem "dizendo": o nome é só a primeira palavra e o resto é a mensagem.
+            return Comando.Mensagem(nome.first(), originais.drop(para + 2).joinToString(" "))
+        }
+        if (temSeparador) {
+            i++
+            if (i <= n.lastIndex && n[i] == "que") i++
+        }
+        return Comando.Mensagem(nome.joinToString(" "), originais.drop(i).joinToString(" "))
     }
 
     private fun lanterna(t: String): Comando? {

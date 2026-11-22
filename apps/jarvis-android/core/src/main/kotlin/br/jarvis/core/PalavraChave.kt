@@ -14,7 +14,8 @@ object PalavraChave {
 
     fun procurar(texto: String): Resultado {
         val palavras = Texto.normalizar(texto).split(" ").filter { it.isNotEmpty() }
-        val i = palavras.indexOfFirst { it in formas }
+        // Aceita também uma letra de diferença ("javis", "jarviz"): o reconhecedor do Android varia a grafia.
+        val i = palavras.indexOfFirst { it in formas || Texto.distancia(it, "jarvis") <= 1 }
         if (i < 0) return Resultado(false, "")
         return Resultado(true, palavras.drop(i + 1).joinToString(" "))
     }

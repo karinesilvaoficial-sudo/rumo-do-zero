@@ -15,11 +15,13 @@ uma prévia desenhada com as mesmas medidas do app, não uma captura do celular.
 
 ## O que ele entende
 
-Chame ("Jarvis" ou 3 palmas), espere ele responder "Sim?" e diga o comando.
+Em Android 13 ou mais novo, diga tudo de uma vez: "Jarvis, abrir YouTube". Em aparelhos
+mais antigos (ou se você desligar essa opção), chame, espere o "Sim?" e diga o comando.
+Com as palmas, bata 3 vezes e fale em seguida.
 
 | Você diz | O que acontece |
 | --- | --- |
-| "Jarvis" … "abrir YouTube" | Abre o app pelo nome (qualquer app instalado) |
+| "Jarvis, abrir YouTube" | Abre o app pelo nome (qualquer app instalado) |
 | "Jarvis abrir" | Abre a tela do próprio Jarvis |
 | "Que horas são?" / "Que dia é hoje?" | Responde falando |
 | "Pesquisar receita de bolo" | Pesquisa na internet |
@@ -28,6 +30,9 @@ Chame ("Jarvis" ou 3 palmas), espere ele responder "Sim?" e diga o comando.
 | "Aumentar o volume" / "Silenciar" | Muda o volume de mídia |
 | "Timer de 5 minutos" / "Alarme para 7 e meia" | Cria no app Relógio |
 | "Como está a bateria?" | Responde a porcentagem |
+| "Ligar para Maria" | Liga para o contato (avisa o nome antes de discar) |
+| "Mandar mensagem para João dizendo que estou chegando" | Abre o WhatsApp com a mensagem escrita; você toca em enviar |
+| Frases livres, como "põe um alarme pras sete e abre o Spotify" | A inteligência entende e executa (precisa da chave) |
 | Qualquer outra pergunta ou conversa | Responde falando, pela inteligência (Claude) |
 | "Desligar" | Para de escutar |
 
@@ -39,6 +44,7 @@ Chame ("Jarvis" ou 3 palmas), espere ele responder "Sim?" e diga o comando.
 4. Toque em **Permitir aparecer na tela e abrir apps**. Sem isso, o Android não deixa
    o Jarvis aparecer quando é chamado nem abrir outros apps em segundo plano.
 5. Toque em **Não deixar o sistema pausar o Jarvis**, para ele continuar ouvindo com a tela apagada.
+6. Toque em **Permitir contatos e ligações** se quiser ligar e mandar mensagens pelo nome.
 
 ## Conversar (responder qualquer pergunta)
 
@@ -56,7 +62,7 @@ próxima fala, sem precisar chamar de novo, até você ficar em silêncio.
   reconhecedor de fala offline (Vosk) que só conhece a palavra "Jarvis". Nada
   desse áudio sai do aparelho. O modelo é o de inglês porque o de português não
   tem "Jarvis" no vocabulário.
-- **Comando**: depois de acordar, o Jarvis responde "Sim?" e usa o reconhecimento de voz do próprio
+- **Comando**: depois de acordar, o Jarvis usa o reconhecimento de voz do próprio
   Android para entender a frase, que é interpretada em `core/Interpretador.kt` e
   executada em `app/.../Executor.kt`.
 - O microfone é usado por uma coisa de cada vez: enquanto o Jarvis fala ou ouve o
@@ -68,7 +74,8 @@ próxima fala, sem precisar chamar de novo, até você ficar em silêncio.
 - Se o sistema encerrar o app, ele não volta sozinho: é preciso abrir e ativar de novo
   (o Android não permite religar o microfone em segundo plano).
 - Com a tela bloqueada o Jarvis ouve e responde, mas apps abertos ficam atrás do bloqueio.
-- "Ligar para Maria" só abre o discador; ele ainda não procura contatos.
+- A mensagem de WhatsApp fica escrita na conversa; o envio depende do seu toque (o WhatsApp não permite envio automático).
+- A frase única depende do reconhecedor de voz do aparelho aceitar áudio vindo do app. Se ele não devolver nada duas vezes seguidas, o Jarvis volta sozinho ao modo de duas etapas até ser reativado.
 
 ## Para desenvolver
 

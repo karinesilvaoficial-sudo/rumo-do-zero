@@ -6,6 +6,8 @@
     <string name="falar_agora">Falar um comando agora</string>
     <string name="ativar_por_voz">Acordar quando eu disser “Jarvis”</string>
     <string name="ativar_por_palmas">Acordar com 3 palmas seguidas</string>
+    <string name="frase_unica">Entender tudo numa frase só (“Jarvis, abrir YouTube”)</string>
+    <string name="permitir_contatos">Permitir contatos e ligações</string>
     <string name="sensibilidade">Sensibilidade das palmas</string>
     <string name="permitir_sobrepor">Permitir aparecer na tela e abrir apps</string>
     <string name="permitir_bateria">Não deixar o sistema pausar o Jarvis</string>
@@ -16,7 +18,7 @@
     <string name="chave_ausente">Sem chave: perguntas livres viram pesquisa na internet.</string>
     <string name="chave_salva">Chave salva. Para trocar, cole outra; para remover, salve em branco.</string>
     <string name="titulo_comandos">O que você pode dizer</string>
-    <string name="comandos">“Jarvis, abrir YouTube”\n“Que horas são?” · “Que dia é hoje?”\n“Pesquisar receita de bolo”\n“Tocar Legião Urbana”\n“Ligar a lanterna” · “Desligar a lanterna”\n“Aumentar o volume” · “Silenciar”\n“Timer de 5 minutos”\n“Alarme para 7 e meia”\n“Como está a bateria?”\nQualquer pergunta ou conversa\n“Desligar” (para de escutar)</string>
+    <string name="comandos">“Jarvis, abrir YouTube”\n“Que horas são?” · “Que dia é hoje?”\n“Pesquisar receita de bolo”\n“Tocar Legião Urbana”\n“Ligar a lanterna” · “Desligar a lanterna”\n“Aumentar o volume” · “Silenciar”\n“Timer de 5 minutos”\n“Alarme para 7 e meia”\n“Como está a bateria?”\n“Ligar para Maria”\n“Mandar mensagem para João dizendo que estou chegando”\nQualquer pergunta ou conversa\n“Desligar” (para de escutar)</string>
     <string name="notificacao_canal">Jarvis escutando</string>
     <string name="notificacao_texto">Diga “Jarvis” ou bata 3 palmas</string>
 </resources>

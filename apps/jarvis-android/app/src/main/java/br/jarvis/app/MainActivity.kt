@@ -29,6 +29,7 @@ class MainActivity : Activity() {
     private lateinit var botaoFalar: Button
     private lateinit var botaoSobrepor: Button
     private lateinit var botaoBateria: Button
+    private lateinit var botaoContatos: Button
     private lateinit var rotuloSensibilidade: TextView
 
     private val aoMudar: () -> Unit = { atualizar() }
@@ -73,6 +74,20 @@ class MainActivity : Activity() {
         chavePalmas.setOnCheckedChangeListener { _, ligado ->
             preferencias.palmas = ligado
             JarvisService.enviar(this, JarvisService.ACAO_RECARREGAR)
+        }
+        val chaveFraseUnica = findViewById<Switch>(R.id.chaveFraseUnica)
+        if (Build.VERSION.SDK_INT >= 33) {
+            chaveFraseUnica.isChecked = preferencias.fraseUnica
+            chaveFraseUnica.setOnCheckedChangeListener { _, ligado ->
+                preferencias.fraseUnica = ligado
+                JarvisService.enviar(this, JarvisService.ACAO_RECARREGAR)
+            }
+        } else {
+            chaveFraseUnica.visibility = View.GONE
+        }
+        botaoContatos = findViewById(R.id.botaoContatos)
+        botaoContatos.setOnClickListener {
+            requestPermissions(arrayOf(Manifest.permission.READ_CONTACTS, Manifest.permission.CALL_PHONE), PEDIDO_CONTATOS)
         }
         val barra = findViewById<SeekBar>(R.id.sensibilidade)
         barra.progress = preferencias.sensibilidade - 1
@@ -149,6 +164,10 @@ class MainActivity : Activity() {
 
     override fun onRequestPermissionsResult(codigo: Int, permissoes: Array<out String>, resultados: IntArray) {
         super.onRequestPermissionsResult(codigo, permissoes, resultados)
+        if (codigo == PEDIDO_CONTATOS) {
+            atualizar()
+            return
+        }
         if (codigo != PEDIDO_PERMISSOES) return
         // Só o microfone é indispensável; sem notificações o Jarvis funciona, apenas sem o aviso na barra.
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
@@ -182,6 +201,8 @@ class MainActivity : Activity() {
         botaoFalar.visibility = if (fase == Fase.AGUARDANDO) View.VISIBLE else View.GONE
 
         botaoSobrepor.visibility = if (Settings.canDrawOverlays(this)) View.GONE else View.VISIBLE
+        botaoContatos.visibility =
+            if (checkSelfPermission(Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) View.GONE else View.VISIBLE
         val energia = getSystemService(PowerManager::class.java)
         botaoBateria.visibility =
             if (energia.isIgnoringBatteryOptimizations(packageName)) View.GONE else View.VISIBLE
@@ -222,5 +243,6 @@ class MainActivity : Activity() {
 
     companion object {
         private const val PEDIDO_PERMISSOES = 10
+        private const val PEDIDO_CONTATOS = 11
     }
 }

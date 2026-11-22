@@ -42,6 +42,11 @@ class Preferencias(contexto: Context) {
         get() = p.getBoolean("palmas", true)
         set(v) = p.edit().putBoolean("palmas", v).apply()
 
+    /** Entender o comando dito junto com o nome ("Jarvis, abrir YouTube"). Só em Android 13 ou mais novo. */
+    var fraseUnica: Boolean
+        get() = p.getBoolean("fraseUnica", true)
+        set(v) = p.edit().putBoolean("fraseUnica", v).apply()
+
     /** Chave da API do Claude, para conversar e responder perguntas. Fica só neste aparelho. */
     var chaveIa: String
         get() = p.getString("chaveIa", "") ?: ""

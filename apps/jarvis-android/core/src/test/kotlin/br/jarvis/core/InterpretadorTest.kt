@@ -56,6 +56,16 @@ class InterpretadorTest {
         assertEquals(Comando.Ligar("maria"), i("ligar para Maria"))
     }
 
+    @Test fun mensagens() {
+        assertEquals(Comando.Mensagem("maria", "chego às oito"), i("mandar mensagem para Maria dizendo que chego às oito"))
+        assertEquals(Comando.Mensagem("joao", "oi tudo bem"), i("manda um whatsapp pro João falando oi tudo bem"))
+        assertEquals(Comando.Mensagem("minha mae", "te amo"), i("enviar mensagem para minha mãe no whatsapp dizendo te amo"))
+        assertEquals(Comando.Mensagem("pedro", "já estou saindo"), i("Jarvis, manda mensagem pro Pedro já estou saindo"))
+        assertEquals(Comando.Mensagem("ana", ""), i("mandar mensagem para a Ana"))
+        // "mandar" sem mensagem não é mensagem
+        assertTrue(i("mandar ver") is Comando.Desconhecido)
+    }
+
     @Test fun conversa() {
         assertEquals(Comando.Saudacao, i("Bom dia"))
         assertEquals(Comando.Agradecimento, i("obrigado"))
@@ -70,6 +80,8 @@ class InterpretadorTest {
         assertEquals(PalavraChave.Resultado(true, "que horas sao"), PalavraChave.procurar("Jarvis, que horas são?"))
         assertEquals(PalavraChave.Resultado(true, ""), PalavraChave.procurar("ei jarvis"))
         assertFalse(PalavraChave.procurar("já vi isso antes").ativou)
+        assertEquals(Comando.AbrirApp("youtube"), i("Javis abrir YouTube"))
+        assertFalse(PalavraChave.procurar("vou viajar para Paris com o Travis").ativou)
     }
 
     @Test fun correspondenciaDeApps() {
